@@ -1,134 +1,196 @@
-# WebPT — Pentest Checklist + Burp Sitemap Coverage Tracker
+# Vectis — Penetration Testing Platform & Sitemap Coverage Tracker
 
-Flask rebuild of the single-file pentest checklist, restructured around a
-Burp Suite sitemap instead of a flat phase list.
+**Vectis** is an advanced, database-backed penetration testing management workspace and Burp Suite coverage tracker. Designed for security consultants and red teams, Vectis bridges the gap between manual testing methodologies, automated scanning tools, and live target architecture.
 
-## What it does
+Instead of maintaining flat spreadsheets or rigid checklists, Vectis structures your assessment around the target's actual attack surface: ingesting Burp Suite sitemaps, heuristically filtering applicable vulnerability checks per endpoint, running automated security probes, executing live terminal commands with real-time SSE streaming, and generating standalone client-ready audit reports.
 
-- **Import a Burp Suite site map export (XML)** per project. Every request
-  Burp saw becomes an `Endpoint` (method + host + path + params).
-- **Left sidebar = sitemap**, grouped by host and path, each row showing a
-  `tested/applicable` coverage badge (green = fully tested, red = has a
-  failed/vulnerable check).
-- Selecting an endpoint shows only the vulnerability checks that are
-  **actually relevant to that endpoint** — decided by a heuristic engine
-  (`vuln_engine.py`) that looks at HTTP method, query/body params, content
-  type, and path patterns (e.g. SQLi/XSS checks only appear on endpoints
-  that take input; CSRF/business-logic checks only on state-changing
-  endpoints; auth checks only on login/reset/session paths; API-Top-10
-  checks only on `/api`-style endpoints; .NET checks only on
-  `.aspx/.ashx/.asmx/.axd`, etc).
-- Each check is a click-to-cycle status: **untested → pass → fail → n/a**,
-  plus a notes field for evidence/payloads and a CVSS field once marked
-  fail — this is where you record "this vulnerability exists on this
-  endpoint."
-- **Automated scanning plugin system**: a "🤖 Run Automated Checks" button
-  on each endpoint (plus a project-wide "Scan All") triggers real HTTP
-  probes against that endpoint and writes evidence — and, where the
-  scanner is confident enough, a real pass/fail verdict — directly onto
-  the relevant checklist item's notes/status. Currently ships with one
-  scanner (clickjacking / framing headers); see **Automated scanners**
-  below for how to add more without touching the rest of the app.
-- **Project-level checklist tab** still covers the phases that aren't tied
-  to one endpoint: Pre-Engagement, Reconnaissance, App Mapping, Automated
-  Scanning, Documentation.
-- **Report generator** produces a standalone HTML report: coverage table
-  per endpoint, and a findings section for everything marked FAIL.
+---
 
-The full 98-item / 13-phase checklist from your original file (OWASP Top
-10, OWASP API Top 10, CWE, MITRE ATT&CK mappings) is preserved as the
-seed data in `seed/phases.json` — nothing was dropped, it's just now
-split into "project-level" vs "per-endpoint" scope and filtered per
-endpoint instead of shown as one long flat list.
+## ⚡ Key Capabilities & Features
 
-## Automated scanners
+### 1. 📋 Multi-Framework Assessment Library
+* **Built-in Security Frameworks**:
+  * **OWASP WSTG v4.2** (Web Security Testing Guide — 98 checks across 13 phases)
+  * **OWASP API Security Top 10** (API-specific attack vectors)
+  * **Mobile Security (OWASP MASTG / MASVS)** for Android & iOS
+  * **AWS Cloud Security Review** & **Kubernetes (K8s) Cluster Assessment**
+  * **Comprehensive Web Application Pentest Methodology** (OWASP WSTG v4 / MITRE ATT&CK / CWE)
+* **Custom Checklist Engine**:
+  * Download official JSON checklist templates (`/checklists/template`).
+  * Import custom methodologies with MITRE ATT&CK tactics, CWE mappings, CVSS scores, remediation advice, and parameterized command scripts.
+  * Export any checklist to JSON for versioning and team sharing.
+  * Multi-framework engagement support: attach multiple checklists to a single project.
 
-WebPT can run live automated checks against an endpoint instead of relying
-entirely on manual testing. This is deliberately built as a **plugin
-system** (`scanners/` package) so it can grow over time without touching
-the rest of the app:
+### 2. 🗺️ Burp Suite Sitemap Coverage & Heuristic Engine
+* **Burp XML Import**: Import live XML sitemap exports directly from Burp Suite (`Target → Site map → Save selected items`).
+* **Visual Sitemap Hierarchy**: Endpoints are parsed, grouped by host/path segments, and color-coded with live `tested / applicable` coverage badges.
+* **Intelligent Heuristic Applicability Engine (`vuln_engine.py`)**:
+  * Dynamically calculates which checks are relevant for each endpoint based on HTTP method, query/body parameters, headers, file uploads, authentication paths, IDOR indicators, and API routes.
+  * SQLi / XSS checks appear on parameter-bearing endpoints; CSRF / State-change checks appear on state-changing endpoints; Auth checks appear on login/session endpoints; API Top 10 checks appear on `/api` routes; .NET checks appear on `.aspx/.ashx/.asmx`.
+* **Testing Workflow**: Fast click-to-cycle statuses (`untested → pass → fail → n/a`), rich markdown/plain-text notes, CVSS scoring, and affected endpoints tagging.
 
-- Click **🤖 run automated checks** on any endpoint to scan just that one,
-  or **🤖 SCAN ALL (AUTOMATED)** in the sidebar to sweep every endpoint in
-  the project.
-- Findings are written as timestamped `[AUTO ...]` lines in the relevant
-  check's notes field, tagged with a 🤖 AUTO badge in the UI.
-- A scanner only auto-sets a check's pass/fail status when it's testing
-  the *actual* condition the checklist item describes (e.g. clickjacking:
-  are anti-framing headers present) — and only if the tester hasn't
-  already recorded a manual verdict. **Automated findings never overwrite
-  a manual conclusion**; re-scanning just appends fresh evidence.
-- The current scanner (`scanners/clickjacking.py`) fetches the endpoint
-  once and produces evidence for four checklist items at once:
-  `WSTG-CLNT-09` (Clickjacking — real verdict), `WSTG-CONF-07` (security
-  headers), `WSTG-CONF-12` (CSP analysis), `WSTG-SESS-02` (cookie
-  attributes) — the latter three as supporting evidence only, since a
-  single request doesn't fully test those broader checks.
-- A second scanner (`scanners/security_headers.py`) is a dedicated audit
-  of `WSTG-CONF-07` (HSTS, X-Content-Type-Options, Referrer-Policy,
-  version-disclosure headers) that *does* assert a real verdict for that
-  check — proof that two scanners can safely cover the same checklist
-  item as long as only one of them is the high-confidence verdict source.
-- Raw scan evidence (headers seen, cookies, etc.) is stored per-check and
-  viewable under a "🤖 RAW SCAN EVIDENCE" expandable panel on each check,
-  separate from the tester's own notes.
+### 3. 💻 Integrated Web Terminal & Command Runner
+* **Browser-Based Tool Execution**: Run tools like `nmap`, `ffuf`, `gobuster`, `nikto`, `sqlmap`, `curl`, and custom scripts directly from the workspace.
+* **Live SSE Output Streaming**: Real-time server-sent events provide instant stdout/stderr terminal output with ANSI color support.
+* **Smart Parameter Interpolation**: Command templates automatically interpolate endpoint context:
+  * `{url}`, `{host}`, `{ip}`, `{path}`, `{method}`, `{port}`, `{assessment_dir}`, `{token}`
+* **Interactive Stdin & Process Management**: Send interactive input to running commands or terminate long-running processes on demand.
+* **Assessment Directory Isolation**: Output files and logs are automatically saved under `assessments/<project_id>_<project_name>/`.
+* **1-Click Notes Integration**: Append command terminal output directly to the active checklist finding with a single click.
+* **Artifacts File Explorer & Viewer**: Browse, preview, and download generated tool outputs, scan logs, and evidence artifacts.
 
-**Adding a new automated check is one file, no other code changes:**
-drop a new module in `scanners/`, subclass `BaseScanner`, decorate it with
-`@register`. See `scanners/README.md` for the exact contract and a
-copy-paste template, plus a running list of good next scanners (TLS
-config, JWT alg confusion, CORS misconfig, active SQLi/XSS probing, etc).
+### 4. 🤖 Pluggable Automated Security Scanners
+* **Modular Plugin Architecture (`scanners/`)**:
+  * Subclass `BaseScanner` and use the `@register` decorator to add new automated checks without altering application core code.
+  * **Clickjacking & Framing Scanner (`scanners/clickjacking.py`)**: Tests `X-Frame-Options`, CSP `frame-ancestors`, and analyzes cookie security flags.
+  * **Security Headers Audit Scanner (`scanners/security_headers.py`)**: Evaluates HSTS, `X-Content-Type-Options`, `Referrer-Policy`, and version disclosure headers.
+* **Non-Destructive Scanning**:
+  * Run automated checks on a single endpoint or trigger **Scan All** across the entire project.
+  * Scanners log structured `[AUTO ...]` findings and raw evidence without overwriting manual tester verdicts.
+* **CLI Diagnostic Runner (`scanner_cli.py`)**: Run diagnostic scans against any URL directly from the terminal with formatted ANSI output.
 
-Existing installs pick up new scanner-related database columns
-automatically — `app.py` runs a small `ensure_columns()` migration at
-startup that adds any missing columns to `instance/webpt.db` without
-touching existing data, so upgrading doesn't mean starting a new project.
+### 5. 🎯 Visual PoC & Exploit Diagnostic Studios
+* **Clickjacking Diagnostic Studio (`/preview/clickjacking`)**:
+  * Interactive framing test bench with live iframe rendering.
+  * Opacity slider for UI redressing proof-of-concept demonstrations.
+  * Burst tester and pointer-events toggles.
+  * Live HTTP security headers analyzer (`/api/preview/check-headers`).
+* **Universal Test & Browser Preview Studio (`/preview/viewer`)**: Safely inspect target endpoints and rendered responses in an isolated browser preview container.
 
-## Getting a Burp Suite sitemap export
+### 6. 🔐 Secrets & API Keys Vault
+* Encrypted client-side API Vault for managing OSINT and assessment keys (Shodan, SecurityTrails, VirusTotal, Censys, GitHub, AWS, OpenAI, Anthropic, Custom Bearer Tokens).
+* Configured secrets are automatically injected into executing command environments and template substitutions.
 
-1. In Burp, browse/crawl/proxy the target so requests populate **Target →
-   Site map**.
-2. Right-click the host(s) you want → **Save selected items**.
-3. Save format: **XML**. (Don't use "Base64-encode requests and
-   responses = off" — leave the default on; the parser reads the raw
-   base64 to pull out params, content-type, etc.)
-4. Upload that `.xml` file via **📥 IMPORT BURP SITEMAP** in the sidebar.
+### 7. 📄 Comprehensive Audit Reports
+* Generate standalone, self-contained HTML audit reports (`/project/<id>/report`).
+* Includes executive summary metrics, severity breakdown, CVSS scores, remediation recommendations, affected endpoints matrix, and evidence logs.
 
-Re-importing the same file (or a newer export) is safe — endpoints are
-matched on `(method, url)` and updated in place rather than duplicated.
+---
 
-## Run it
+## 🚀 Quick Start
+
+### Prerequisites
+* Python 3.9+
+* pip
+
+### Installation & Setup
+
+1. **Clone or navigate to the repository:**
+   ```bash
+   cd /home/kali/Documents/tools/vectis
+   ```
+
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Launch the application:**
+   ```bash
+   python app.py
+   ```
+
+4. **Access the Dashboard:**
+   Open your browser and navigate to:
+   ```
+   http://127.0.0.1:5000
+   ```
+
+*The SQLite database is initialized automatically at `instance/webpt.db` on first run, and the checklist library is automatically seeded from `seed/checklists/*.json`.*
+
+---
+
+## 🛠️ CLI Diagnostic Scanner
+
+Vectis includes a standalone CLI runner for running automated diagnostic scanners against target URLs:
 
 ```bash
-pip install -r requirements.txt
-python app.py
+# Run clickjacking / framing header diagnostic
+python3 scanner_cli.py clickjacking https://example.com/login
+
+# Run security headers audit
+python3 scanner_cli.py headers https://example.com
+
+# Run all applicable scanners
+python3 scanner_cli.py all https://example.com/api/v1/users
 ```
 
-Then open http://127.0.0.1:5000. The SQLite DB is created automatically
-at `instance/webpt.db` on first run (and the checklist library is seeded
-once from `seed/phases.json`).
+---
 
-## Project layout
+## 📁 Project Structure
 
 ```
-app.py            routes: dashboard, project view, Burp import, status APIs,
-                  automated-scan APIs, report
-models.py         Project / Endpoint / VulnCheck / EndpointVulnStatus / ProjectVulnStatus
-burp_parser.py     parses Burp's XML sitemap export into endpoint dicts
-vuln_engine.py     decides which checks are "applicable" to a given endpoint
-scanners/         automated scanner plugins (see scanners/README.md)
-seed/phases.json  the original 13-phase / 98-item checklist as data
-templates/        Jinja templates (dashboard, project workspace, report)
-static/           CSS + vanilla JS (no build step, no frontend framework)
+vectis/
+├── app.py                     # Main Flask application, API routes, command execution & SSE streaming
+├── models.py                  # SQLAlchemy database schema (Projects, Endpoints, Checklists, Statuses)
+├── extensions.py              # Shared SQLAlchemy database instance
+├── burp_parser.py             # XML parser for Burp Suite sitemap exports
+├── vuln_engine.py             # Heuristic engine deciding checklist applicability per endpoint
+├── scanner_cli.py             # Standalone CLI runner for scanner diagnostics
+├── requirements.txt           # Python package dependencies
+├── instance/                  # SQLite database storage (webpt.db)
+├── assessments/               # Assessment directories with isolated tool outputs & artifacts
+│   └── <project_id>_<name>/   # Project-specific logs, tool scans, and output files
+├── scanners/                  # Pluggable automated security scanners
+│   ├── base.py                # BaseScanner abstract class & ScanFinding dataclass
+│   ├── registry.py            # Scanner registry and execution dispatch
+│   ├── clickjacking.py        # Clickjacking & framing header scanner
+│   ├── security_headers.py    # Security headers and disclosure scanner
+│   └── README.md              # Guide for building custom scanner plugins
+├── seed/                      # Checklist definitions and import templates
+│   ├── checklists/            # Built-in checklist JSON files (WSTG, API Top 10, Mobile, Cloud, K8s)
+│   ├── template/              # Official JSON schema template for custom checklists
+│   └── sample_burp_export.xml # Sample Burp Suite sitemap for testing
+├── templates/                 # Jinja2 HTML templates
+│   ├── base.html              # Base layout
+│   ├── dashboard.html         # Projects overview, checklist library manager & API vault
+│   ├── project.html           # Project workspace, sitemap tree, checklist matrix & terminal
+│   ├── report.html            # Standalone client-ready HTML audit report
+│   ├── preview_clickjacking.html # Clickjacking PoC and framing test studio
+│   └── preview_viewer.html    # Universal browser preview studio
+└── static/                    # Front-end styling and JavaScript
+    ├── css/style.css          # Dark-mode cyberpunk/terminal stylesheet
+    └── js/app.js              # Single-page UI state management, SSE terminal & API handlers
 ```
 
-## Notes / next steps you may want
+---
 
-- The applicability engine is heuristic, not exhaustive — if you find a
-  check that should (or shouldn't) show up for a certain kind of
-  endpoint, adjust the `RULES` list in `vuln_engine.py`.
-- Currently single-user, no auth — fine for local use; add
-  Flask-Login/SSO before exposing this beyond localhost.
-- `has_id_param` detection is deliberately loose (numeric/UUID path
-  segments + params like `user_id`, `order`, `account`) since IDOR checks
-  should err toward being shown rather than hidden.
+## 🧩 Extending Vectis with Custom Scanners
+
+Adding an automated security check is straightforward and requires creating only a single file in `scanners/`:
+
+```python
+# scanners/cors_scanner.py
+from . import BaseScanner, ScanFinding, register
+
+@register
+class CorsScanner(BaseScanner):
+    id = "cors_misconfig"
+    name = "CORS Misconfiguration Check"
+    description = "Checks for arbitrary origin reflection in CORS headers."
+    covers = ["WSTG-CLNT-07"]
+
+    def applies_to(self, endpoint):
+        return endpoint.is_api or endpoint.has_params
+
+    def scan(self, endpoint):
+        # Perform HTTP request (never raise unhandled exceptions)
+        # Return list of ScanFinding objects
+        return [
+            ScanFinding(
+                vuln_id="WSTG-CLNT-07",
+                status="pass",        # 'pass' | 'fail' | 'info' | 'error'
+                summary="CORS Access-Control-Allow-Origin is properly restricted.",
+                evidence={"origin_tested": "https://evil.com"},
+                confidence="high",    # 'high' confidence sets status on untested checks
+            )
+        ]
+```
+
+*The scanner will automatically register at startup and be available in both the Web UI and the CLI runner.*
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
