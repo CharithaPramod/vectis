@@ -1,0 +1,78 @@
+{
+  "$schema_description": "WebPT Assessment Checklist Template. Import this format into WebPT to add custom checklists.",
+  "id": "custom-assessment-template",
+  "name": "Custom Pentest Assessment Template",
+  "description": "Template checklist demonstrating all supported fields including MITRE ATT&CK tactics, CWE, CVSS, test cases, recommendations, and parameterized command scripts.",
+  "category": "Custom",
+  "icon": "⚡",
+  "version": "1.0",
+  "phases": [
+    {
+      "id": "PHASE-01",
+      "name": "Information Gathering & Reconnaissance",
+      "scope": "project",
+      "items": [
+        {
+          "id": "RECON-CUSTOM-01",
+          "name": "Service Discovery and Port Enumeration",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.001 - Active Scanning: Scanning IP Blocks",
+            "T1595.002 - Active Scanning: Vulnerability Scanning"
+          ],
+          "mitre": ["Reconnaissance", "T1595"],
+          "cwe": ["CWE-200"],
+          "cvss_score": "5.3 (Medium)",
+          "how": "Perform port scanning and service banner grabbing against target IP/host to identify open ports, running services, and version information.",
+          "cases": [
+            "Run TCP SYN port scan across standard ports (1-10000)",
+            "Perform service version detection (-sV) and default script scanning (-sC)",
+            "Identify unintended exposed management interfaces (SSH, RDP, Redis, Elasticsearch)"
+          ],
+          "expected": "Only required public ports are accessible. Administrative interfaces are filtered or behind VPN. Service versions do not leak unnecessary internal details.",
+          "recommendation": "Restrict firewall rules to expose only necessary services. Place administrative services behind a VPN or IP whitelist. Disable service banner version disclosures.",
+          "tools": ["nmap", "masscan", "rustscan"],
+          "command_template": "nmap -sV -sC -Pn -T4 -p 80,443,8080,8443 {{HOST}} -oN nmap_recon.txt",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "PHASE-02",
+      "name": "Vulnerability Testing & Exploitation",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "INJ-CUSTOM-01",
+          "name": "SQL Injection in Query / Body Parameters",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": ["Initial Access", "T1190"],
+          "cwe": ["CWE-89"],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Inject single quotes, boolean operators, time-delay payloads, and union payloads into all query and body parameters to test for SQL injection flaws.",
+          "cases": [
+            "Test single quote and syntax breaks: ' OR '1'='1 --",
+            "Test boolean differential responses: AND 1=1 vs AND 1=2",
+            "Test time-based blind injection: WAITFOR DELAY '0:0:5' or pg_sleep(5)",
+            "Test out-of-band extraction (OOB DNS/HTTP queries)"
+          ],
+          "expected": "Application uses parameterized queries / prepared statements for all database interactions. No SQL syntax errors or data exfiltration occurs.",
+          "recommendation": "Use parameterized queries (PreparedStatements / ORMs) for all database operations. Implement input validation and least-privilege database user permissions.",
+          "tools": ["sqlmap", "ghauri", "curl"],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --random-agent --banner --dbs",
+          "references": [
+            "https://owasp.org/www-community/attacks/SQL_Injection",
+            "https://cwe.mitre.org/data/definitions/89.html"
+          ]
+        }
+      ]
+    }
+  ]
+}

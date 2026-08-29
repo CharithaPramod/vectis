@@ -1,0 +1,46 @@
+{
+  "id": "kubernetes-k8s-security",
+  "name": "Kubernetes Cluster Security Assessment",
+  "description": "K8s cluster RBAC, pod security, and network policy checklist",
+  "category": "Cloud",
+  "icon": "\u2638\ufe0f",
+  "version": "1.0",
+  "is_builtin": false,
+  "phases": [
+    {
+      "id": "K8S-POD",
+      "name": "Pod Security Standards",
+      "scope": "project",
+      "items": [
+        {
+          "id": "K8S-POD-01",
+          "name": "Privileged Pod and HostPID / HostNetwork Inspection",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1611 - Escape to Host"
+          ],
+          "mitre": [],
+          "cwe": [
+            "CWE-250"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Check if containers run in privileged mode (securityContext.privileged=true) or share host namespaces (hostPID, hostNetwork, hostIPC).",
+          "cases": [
+            "Run kubectl get pods -A -o json | jq '.items[] | select(.spec.containers[].securityContext.privileged==true)'",
+            "Verify Pod Security Admission (PSA) mode is set to 'restricted' or 'baseline'"
+          ],
+          "expected": "No unprivileged workloads run with securityContext.privileged: true. Host namespaces are disabled.",
+          "recommendation": "Enforce Kubernetes Pod Security Admission with 'restricted' level. Disallow privileged containers and root users.",
+          "tools": [
+            "kubectl",
+            "kube-bench",
+            "trivy"
+          ],
+          "command_template": "kubectl get pods -A -o jsonpath='{range .items[?(@.spec.containers[*].securityContext.privileged==true)]}{.metadata.namespace}{\" \"}{.metadata.name}{\"\\n\"}{end}'",
+          "references": []
+        }
+      ]
+    }
+  ]
+}

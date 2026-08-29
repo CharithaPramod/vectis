@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+{% block title %}WebPT // {{ project.name }}{% endblock %}
+
+{% macro rendertree(node, host_key) %}
+  {% for seg, child in node['__children__'].items()|sort %}
+    <div class="node">
+      <div class="node-hdr" onclick="toggleNode(this)">
+        <span class="caret">▸</span><span class="seg">/{{ seg }}</span>
+      </div>
+      <div class="node-children">
+        {% for ep in child['__endpoints__'] %}
+          {% set v = endpoint_vulns.get(ep.id, {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'info': 0, 'total': 0}) %}
+          <div class="ep-row" data-endpoint-id="{{ ep.id }}" data-path="{{ ep.path }}" data-method="{{ ep.method }}"
+               onclick="filterChecklistByEndpoint({{ ep.id }}, '{{ ep.method }}', '{{ ep.path }}')">
+            <span class="method-tag method-{{ ep.method }}">{{ ep.method }}</span>
+            <span class="ep-path" title="{{ ep.url }}">/{{ seg }}</span>
+            <div class="ep-vuln-badges" id="epBadges-{{ ep.id }}">
+              {% if v.critical > 0 %}<span class="sev-badge-sm sev-critical" title="Critical: {{ v.critical }}">{{ v.critical }}C</span>{% endif %}
+              {% if v.high > 0 %}<span class="sev-badge-sm sev-high" title="High: {{ v.high }}">{{ v.high }}H</span>{% endif %}
+              {% if v.medium > 0 %}<span class="sev-badge-sm sev-medium" title="Medium: {{ v.medium }}">{{ v.medium }}M</span>{% endif %}
+              {% if v.low > 0 %}<span class="sev-badge-sm sev-low" title="Low: {{ v.low }}">{{ v.low }}L</span>{% endif %}
+              {% if v.total == 0 %}<span class="sev-badge-sm sev-clean" title="No vulnerabilities attached">clean</span>{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        {{ rendertree(child, host_key) }}
+      </div>
+    </div>
+  {% endfor %}
+{% endmacro %}
+
+{% block body %}
+<div id="app">
+  <!-- SIDEBAR: SITEMAP & ENDPOINTS -->
+  <div id="sidebar">
+    <div class="sb-hdr">
+      <span>SITEMAP &amp; ENDPOINTS</span>
+      <a href="{{ url_for('dashboard') }}" style="color:var(--dim);font-size:10px;text-decoration:none">← PROJECTS</a>
+    </div>
+    <div class="sb-search">
+      <input id="epFilter" type="text" placeholder="filter sitemap paths..." oninput="filterTree(this.value)">
+    </div>
+    <div id="tree">
+      {% if not tree %}
+        <div class="empty-tree">
+          No endpoints loaded yet.<br><br>
+          Import a Burp Suite site map XML export below to populate the sitemap tree and attach endpoints to checklist findings.
+        </div>
+      {% else %}
+        {% for host, hostnode in tree.items()|sort %}
+        <div class="node host open">
+          <div class="node-hdr" onclick="toggleNode(this)">
+            <span class="caret">▾</span><span class="seg">🌐 {{ host }}</span>
+          </div>
+          <div class="node-children" style="display:block">
+            {% for ep in hostnode['__endpoints__'] %}
+              {% set v = endpoint_vulns.get(ep.id, {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'info': 0, 'total': 0}) %}
+              <div class="ep-row" data-endpoint-id="{{ ep.id }}" data-path="{{ ep.path }}" data-method="{{ ep.method }}"
+                   onclick="filterChecklistByEndpoint({{ ep.id }}, '{{ ep.method }}', '{{ ep.path }}')">
+                <span class="method-tag method-{{ ep.method }}">{{ ep.method }}</span>
+                <span class="ep-path" title="{{ ep.url }}">/</span>
+                <div class="ep-vuln-badges" id="epBadges-{{ ep.id }}">
+                  {% if v.critical > 0 %}<span class="sev-badge-sm sev-critical" title="Critical: {{ v.critical }}">{{ v.critical }}C</span>{% endif %}
+                  {% if v.high > 0 %}<span class="sev-badge-sm sev-high" title="High: {{ v.high }}">{{ v.high }}H</span>{% endif %}
+                  {% if v.medium > 0 %}<span class="sev-badge-sm sev-medium" title="Medium: {{ v.medium }}">{{ v.medium }}M</span>{% endif %}
+                  {% if v.low > 0 %}<span class="sev-badge-sm sev-low" title="Low: {{ v.low }}">{{ v.low }}L</span>{% endif %}
+                  {% if v.total == 0 %}<span class="sev-badge-sm sev-clean" title="No vulnerabilities attached">clean</span>{% endif %}
+                </div>
+              </div>
+            {% endfor %}
+            {{ rendertree(hostnode, host) }}
+          </div>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <div class="sb-footer">
+      <form method="POST" action="{{ url_for('import_burp', project_id=project.id) }}" enctype="multipart/form-data">
+        <label class="btn btn-center" for="burpFile" style="display:block;cursor:pointer">📥 IMPORT BURP SITEMAP (XML)</label>
+        <input id="burpFile" type="file" name="burp_file" accept=".xml" style="display:none" onchange="this.form.submit()">
+      </form>
+      <a class="btn btn-center" href="{{ url_for('report', project_id=project.id) }}" target="_blank" style="text-decoration:none;display:block">📄 GENERATE AUDIT REPORT</a>
+      <form method="POST" action="{{ url_for('scan_all_endpoints', project_id=project.id) }}"
+            onsubmit="return confirm('Run automated scanners against all endpoints in this project? This sends live requests to the target.')">
+        <button type="submit" class="btn btn-center">🤖 SCAN ALL (AUTOMATED)</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN VIEW -->
+  <div id="main">
+    <!-- TOPBAR -->
+    <div id="topbar">
+      <div class="logo">
+        WEBPT<span>://</span>{{ project.name|upper }}<span class="blink"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="openApiVaultModal()" title="Manage API Keys, tokens & secrets">🔑 API VAULT</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="openArtifactsModal({{ project.id }})" title="View and download files in the assessment directory">📁 OUTPUT FILES</button>
+        <div class="topbar-checklists">
+          {% for ct in active_checklists %}
+          <span class="tag-badge">{{ ct.icon }} {{ ct.name }}</span>
+          {% endfor %}
+        </div>
+        <div class="tbar-status"><span class="dot"></span> {{ project.env }}</div>
+      </div>
+    </div>
+
+    <!-- STATS BAR -->
+    <div id="sbar">
+      <div class="si"><div class="sv">{{ stats.endpoints }}</div><div class="sl">ENDPOINTS</div></div>
+      <div class="si"><div class="sv">{{ stats.total }}</div><div class="sl">TOTAL CHECKS</div></div>
+      <div class="si"><div class="sv c" id="statTested">{{ stats.tested }}</div><div class="sl">TESTED</div></div>
+      <div class="si"><div class="sv r" id="statFailed">{{ stats.failed }}</div><div class="sl">FINDINGS</div></div>
+      <div class="si"><div class="sv y" id="statPct">{{ stats.pct }}%</div><div class="sl">COVERAGE</div></div>
+    </div>
+
+    <!-- ACTIVE ENDPOINT FILTER BANNER -->
+    <div id="activeEndpointBanner" class="filter-banner" style="display:none">
+      <span>🎯 FILTERED BY AFFECTED ENDPOINT: <b id="activeEndpointName"></b></span>
+      <button type="button" class="btn-micro" onclick="clearEndpointFilter()" style="margin-left:auto;color:var(--cyan);border-color:var(--cyan)">✕ SHOW ALL CHECKS</button>
+    </div>
+
+    <!-- FILTER TOOLBAR -->
+    <div class="cl-filter-toolbar">
+      <div class="filter-group">
+        <span class="filter-lbl">STATUS:</span>
+        <button type="button" class="btn-pill active" data-status-filter="all" onclick="filterChecksByStatus('all', this)">ALL</button>
+        <button type="button" class="btn-pill pill-fail" data-status-filter="fail" onclick="filterChecksByStatus('fail', this)">🔴 FAIL (FINDINGS)</button>
+        <button type="button" class="btn-pill pill-pass" data-status-filter="pass" onclick="filterChecksByStatus('pass', this)">✓ PASS</button>
+        <button type="button" class="btn-pill" data-status-filter="untested" onclick="filterChecksByStatus('untested', this)">UNTESTED</button>
+        <button type="button" class="btn-pill" data-status-filter="na" onclick="filterChecksByStatus('na', this)">N/A</button>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-lbl">SEVERITY:</span>
+        <button type="button" class="btn-pill active" data-sev-filter="all" onclick="filterChecksBySev('all', this)">ALL</button>
+        <button type="button" class="btn-pill sev-critical" data-sev-filter="critical" onclick="filterChecksBySev('critical', this)">CRIT</button>
+        <button type="button" class="btn-pill sev-high" data-sev-filter="high" onclick="filterChecksBySev('high', this)">HIGH</button>
+        <button type="button" class="btn-pill sev-medium" data-sev-filter="medium" onclick="filterChecksBySev('medium', this)">MED</button>
+        <button type="button" class="btn-pill sev-low" data-sev-filter="low" onclick="filterChecksBySev('low', this)">LOW</button>
+      </div>
+
+      <div class="filter-search-wrap">
+        <input type="text" id="checkSearchInput" placeholder="🔍 search checks, CWE, MITRE tactic..." oninput="filterChecksBySearch(this.value)">
+      </div>
+    </div>
+
+    <!-- MAIN CHECKLIST CONTENT -->
+    <div id="content" style="padding:0">
+      {% set ns = namespace(phase='', cl_type='') %}
+      {% for check in all_checks %}
+        {% if check.checklist_type_id != ns.cl_type or check.phase_id != ns.phase %}
+          {% if ns.phase != '' %}</div>{% endif %}
+          {% set ns.cl_type = check.checklist_type_id %}
+          {% set ns.phase = check.phase_id %}
+          <div class="ph-block">
+            <div class="ph-title">
+              <span class="ph-id">{{ check.phase_id }}</span>
+              <b>{{ check.phase_name }}</b>
+              {% if check.checklist_type %}
+              <span class="cl-type-chip">{{ check.checklist_type.icon }} {{ check.checklist_type.name }}</span>
+              {% endif %}
+            </div>
+        {% endif %}
+
+        {% set st = project_statuses.get(check.id) %}
+        {% set status = st.status if st else 'untested' %}
+        {% set affected_eps = st.affected_endpoints if st else [] %}
+        {% set custom_eps = st.custom_affected|from_json if (st and st.custom_affected) else [] %}
+
+        <div class="ci {% if status!='untested' %}tested{% endif %}"
+             data-vuln="{{ check.id }}"
+             data-status="{{ status }}"
+             data-sev="{{ check.sev }}"
+             data-affected-ids="{{ affected_eps|map(attribute='id')|list|tojson }}">
+          <div class="ci-hdr">
+            <div class="cb {{ status if status!='untested' else '' }}"
+                 onclick="cycleProjectStatus(this, {{ project.id }}, '{{ check.id }}')"
+                 data-status="{{ status }}">
+              {{ '✓' if status=='pass' else ('✕' if status=='fail' else ('N/A' if status=='na' else '')) }}
+            </div>
+            <div class="ci-body">
+              <div class="cl {{ status if status in ['pass','fail'] else '' }}" onclick="toggleExpand(this)">
+                <span class="cl-id">{{ check.id }}</span>
+                <b>{{ check.name }}</b>
+                <span class="sev-tag sev-{{ check.sev }}">{{ check.sev|upper }}</span>
+
+                {% if check.mitre_tactic %}
+                <span class="mitre-tag" title="MITRE ATT&amp;CK Tactic">🛡️ {{ check.mitre_tactic }}</span>
+                {% endif %}
+
+                {% set cwe = check.cwe|from_json %}
+                {% for c in cwe %}
+                <span class="cwe-tag" title="Common Weakness Enumeration">{{ c }}</span>
+                {% endfor %}
+
+                {% if check.cvss_score %}
+                <span class="cvss-badge" title="Reference CVSS Score">CVSS {{ check.cvss_score }}</span>
+                {% endif %}
+
+                <span class="affected-summary-badge" id="affSummary-{{ check.id }}">
+                  {% set total_aff = (affected_eps|length) + (custom_eps|length) %}
+                  {% if total_aff > 0 %}🎯 {{ total_aff }} affected endpoint(s){% endif %}
+                </span>
+              </div>
+
+              <div class="ci-detail">{{ check.how }}</div>
+
+              <div class="ci-extra">
+                <!-- AFFECTED ENDPOINTS SECTION -->
+                <div class="affected-endpoints-box" data-vuln="{{ check.id }}">
+                  <div class="affected-ep-hdr">
+                    <span>🎯 AFFECTED ENDPOINTS &amp; SCOPE:</span>
+                    <span style="font-size:9px;color:var(--dim)">Link vulnerable endpoints discovered during testing</span>
+                  </div>
+
+                  <div class="affected-chips-container" id="affChips-{{ check.id }}">
+                    {% for ep in affected_eps %}
+                    <span class="affected-ep-chip" data-endpoint-id="{{ ep.id }}">
+                      <span class="method-tag method-{{ ep.method }}">{{ ep.method }}</span>
+                      <span class="chip-path">{{ ep.path }}</span>
+                      <button type="button" class="btn-ep-remove" onclick="removeAffectedEndpoint({{ project.id }}, '{{ check.id }}', {{ ep.id }}, this)" title="Remove endpoint">✕</button>
+                    </span>
+                    {% endfor %}
+                    {% for c_url in custom_eps %}
+                    <span class="affected-ep-chip custom-chip" data-custom-url="{{ c_url }}">
+                      <span class="method-tag method-CUSTOM">URL</span>
+                      <span class="chip-path">{{ c_url }}</span>
+                      <button type="button" class="btn-ep-remove" onclick="removeCustomAffectedEndpoint({{ project.id }}, '{{ check.id }}', '{{ c_url }}', this)" title="Remove endpoint">✕</button>
+                    </span>
+                    {% endfor %}
+                  </div>
+
+                  <div class="add-ep-row">
+                    <select class="ep-select-input" onchange="attachSelectedEndpoint(this, {{ project.id }}, '{{ check.id }}')">
+                      <option value="">+ Attach Endpoint from Sitemap...</option>
+                      {% for ep in endpoints %}
+                      <option value="{{ ep.id }}">{{ ep.method }} {{ ep.path }} ({{ ep.host }})</option>
+                      {% endfor %}
+                    </select>
+
+                    <input type="text" class="custom-ep-input" placeholder="+ or type custom URL / parameter..."
+                           onkeydown="if(event.key==='Enter'){ event.preventDefault(); attachCustomEndpoint(this, {{ project.id }}, '{{ check.id }}'); }">
+                    <button type="button" class="btn btn-sm" onclick="attachCustomEndpoint(this.previousElementSibling, {{ project.id }}, '{{ check.id }}')">+ ADD</button>
+                  </div>
+                </div>
+
+                <!-- TEST CASES -->
+                {% set cases = check.cases|from_json %}
+                {% if cases %}
+                <div class="cases-box">
+                  <div class="box-label">🔍 TEST CASES &amp; VERIFICATION STEPS:</div>
+                  <ul class="cases-list">
+                    {% for c in cases %}
+                    <li>{{ c }}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+
+                <!-- EXPECTED RESULTS -->
+                {% if check.expected %}
+                <div class="ci-detail" style="margin:6px 0">
+                  <strong style="color:var(--green)">✓ Expected Result (Pass Condition):</strong> {{ check.expected }}
+                </div>
+                {% endif %}
+
+                <!-- DEFAULT RECOMMENDATION -->
+                {% if check.recommendation %}
+                <div class="recom-box">
+                  <div class="recom-hdr">
+                    <span>💡 DEFAULT RECOMMENDATION / REMEDIATION:</span>
+                    <button type="button" class="btn-micro" onclick="copyRecomToNotes(this)">📋 Insert into Notes</button>
+                  </div>
+                  <div class="recom-text">{{ check.recommendation }}</div>
+                </div>
+                {% endif %}
+
+                <!-- TOOL & COMMAND ASSISTANT -->
+                {% if check.command_template or check.tools %}
+                <div class="tool-cmd-box"
+                     data-template="{{ check.command_template }}"
+                     data-url="{{ project.target }}"
+                     data-host="{{ project.target }}"
+                     data-method="GET"
+                     data-path="/"
+                     data-target="{{ project.target }}"
+                     data-tech="{{ project.tech_stack }}">
+                  <div class="tool-cmd-hdr">
+                    <span>⚡ TOOL &amp; COMMAND ASSISTANT</span>
+                    {% set tools = check.tools|from_json %}
+                    <div class="tool-tags-row">
+                      {% for t in tools %}<span class="tool-chip">{{ t }}</span>{% endfor %}
+                    </div>
+                  </div>
+
+                  {% if check.command_template %}
+                  <div class="param-inputs-row">
+                    <!-- Dynamic parameter inputs populated by JS -->
+                  </div>
+                  <div class="cmd-rendered-wrap">
+                    <div class="cmd-rendered-code"></div>
+                    <div class="cmd-btns-row">
+                      <button type="button" class="btn-copy-cmd" onclick="copyRenderedCommand(this)">📋 COPY</button>
+                      <button type="button" class="btn-run-cmd" onclick="runScriptCommand(this, {{ project.id }}, '{{ check.id }}')">▶ RUN SCRIPT</button>
+                      <button type="button" class="btn-preview-cmd" onclick="openPreviewForCheck(this, {{ project.id }}, '{{ check.id }}', '{{ check.name|escape }}')">👁️ PREVIEW / POC</button>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- TESTER NOTES -->
+                <div class="notes-wrapper" style="margin-top:10px">
+                  <div class="notes-hdr">
+                    <span class="notes-label">TESTER EVIDENCE &amp; AUDIT NOTES:</span>
+                    <div class="notes-actions">
+                      <button type="button" class="btn-notes-action" onclick="copyNotesContent(this)" title="Copy entire notes to clipboard">📋 Copy</button>
+                      <button type="button" class="btn-notes-action" onclick="toggleNotesSize(this)" title="Expand or compact notes height">🗖 Expand</button>
+                    </div>
+                  </div>
+                  <textarea class="notes-area" placeholder="Record evidence, vulnerable parameters, payload snippets, or findings (auto-expands with content)..."
+                    oninput="autoResizeTextarea(this)"
+                    onfocus="autoResizeTextarea(this)"
+                    onblur="saveProjectNotes(this, {{ project.id }}, '{{ check.id }}')">{{ st.notes if st else '' }}</textarea>
+                </div>
+
+                <!-- CVSS SCORE IF FAIL -->
+                <div class="cvss-row" id="cvssRow-{{ check.id }}" style="margin-top:8px;display:{% if status=='fail' %}flex{% else %}none{% endif %}">
+                  <label style="font-size:9px;color:var(--dim)">CVSS 3.1 SCORE:</label>
+                  <input type="text" placeholder="e.g. {{ check.cvss_score or '8.6 (High)' }}"
+                         value="{{ st.cvss if (st and st.cvss) else (check.cvss_score or '') }}"
+                         onblur="saveProjectCvss(this, {{ project.id }}, '{{ check.id }}')">
+                  <span class="save-hint">saved</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+      {% if all_checks %}</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- TERMINAL CONSOLE DRAWER -->
+  <div id="terminalDrawer" class="terminal-drawer">
+    <div class="terminal-header">
+      <div class="terminal-title">
+        <span class="terminal-icon">🖥️</span>
+        <span class="terminal-heading">WEBPT TERMINAL</span>
+        <span id="terminalStatus" class="term-status-badge idle">● IDLE</span>
+        <span id="termAssessmentDir" class="term-dir-badge" onclick="openArtifactsModal({{ project.id }})" title="Click to view assessment directory files">📁 assessments/{{ project.name|truncate(25) }}</span>
+        <span id="terminalTargetInfo" class="term-target-info"></span>
+      </div>
+      <div class="terminal-actions">
+        <button type="button" id="btnTermPreview" class="btn-term-action preview" onclick="openTerminalActivePreview()" style="display:none">👁️ PREVIEW TEST</button>
+        <button type="button" id="btnTermArtifacts" class="btn-term-action" onclick="openArtifactsModal({{ project.id }})" title="Browse output files in this assessment's directory">📁 FILES</button>
+        <button type="button" id="btnTermVault" class="btn-term-action" onclick="openApiVaultModal()" title="API Keys & Secrets Vault">🔑 KEYS</button>
+        <button type="button" id="btnStopProcess" class="btn-term-action stop" onclick="stopCurrentProcess()" style="display:none">⏹ STOP PROCESS</button>
+        <button type="button" id="btnInsertTerminalNotes" class="btn-term-action insert" onclick="insertTerminalOutputToActiveCheck()" title="Save current command section (or selected text) to active check notes">📝 SAVE TO NOTES</button>
+        <label class="term-autosave-toggle" title="Automatically append current command section output to check notes when finished">
+          <input type="checkbox" id="termAutoSaveCheckbox" checked onchange="toggleAutoSaveNotes(this.checked)">
+          <span>Auto-Save</span>
+        </label>
+        <button type="button" class="btn-term-action" onclick="clearTerminal()">🧹 CLEAR</button>
+        <button type="button" id="btnMaximizeTerminal" class="btn-term-action" onclick="toggleMaximizeTerminal()">🗖 EXPAND</button>
+        <button type="button" class="btn-term-action" onclick="toggleTerminalDrawer()">— MINIMIZE</button>
+        <button type="button" class="btn-term-action close" onclick="closeTerminalDrawer()">✕</button>
+      </div>
+    </div>
+    <div id="terminalBody" class="terminal-body">
+      <!-- SCRIPT INTERACTIVE INPUT REQUEST BANNER (WHEN PAUSED FOR KEYS / PROMPTS) -->
+      <div id="termPromptBanner" class="term-prompt-banner" style="display:none">
+        <div class="prompt-banner-msg">
+          <span class="prompt-pulse">⏸️</span>
+          <span class="prompt-txt">Script is requesting input / key: <strong id="termPromptText">...</strong></span>
+        </div>
+        <div class="prompt-banner-actions">
+          <button type="button" class="btn-micro prompt-btn-key" onclick="quickSendStoredKey()">🔑 Send Stored Key</button>
+          <button type="button" class="btn-micro" onclick="sendQuickInput('y')">(y) Yes</button>
+          <button type="button" class="btn-micro" onclick="sendQuickInput('n')">(n) No</button>
+          <button type="button" class="btn-micro" onclick="sendQuickInput('')">↵ Enter</button>
+        </div>
+      </div>
+
+      <div class="term-line prompt-line">
+        <span id="termPromptSymbol" class="prompt-symbol">$</span>
+        <input type="text" id="termInteractiveInput" class="term-interactive-input" placeholder="Type shell command or script and press Enter (or click [▶ RUN SCRIPT])..." onkeydown="handleTerminalInputKey(event)">
+        <button type="button" id="btnTermExec" class="btn-term-exec" onclick="handleTerminalExecuteOrSend()">EXECUTE</button>
+      </div>
+      <div id="terminalOutput" class="terminal-output"></div>
+    </div>
+  </div>
+
+  <!-- FLOATING TERMINAL TOGGLE (WHEN MINIMIZED) -->
+  <div id="floatingTermToggle" class="floating-term-pill" onclick="openTerminalDrawer()" style="display:none">
+    <span class="term-dot"></span>
+    <span>🖥️ Terminal Console</span>
+    <span id="floatingTermStatus" class="floating-status">IDLE</span>
+  </div>
+
+  <!-- UNIVERSAL PREVIEW MODAL -->
+  <div id="previewModalOverlay" class="modal-overlay" style="display:none">
+    <div class="modal-box preview-modal-box">
+      <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span id="previewModalTitle">👁️ BROWSER TEST &amp; POC PREVIEW</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <a id="previewModalExternalLink" href="#" target="_blank" class="btn-pill" style="text-decoration:none">🚀 OPEN IN NEW TAB</a>
+          <button type="button" class="btn-action close" onclick="closePreviewModal()">✕</button>
+        </div>
+      </div>
+      <div class="preview-modal-body">
+        <iframe id="previewModalIframe" src="about:blank" style="width:100%;height:580px;border:1px solid var(--border2);background:#000"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- API KEYS & SECRETS VAULT MODAL -->
+  <div id="apiVaultModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:640px;max-height:85vh;overflow-y:auto;padding:22px">
+      <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:var(--cyan)">
+        <span>🔑 API KEYS &amp; SECRETS VAULT</span>
+        <button type="button" class="btn-action close" onclick="closeApiVaultModal()">✕</button>
+      </div>
+      <p style="font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.5">
+        Configured keys and tokens are automatically injected into running script environments (<span style="color:var(--cyan)">$SHODAN_API_KEY</span>, <span style="color:var(--cyan)">$TOKEN</span>, <span style="color:var(--cyan)">$AWS_ACCESS_KEY_ID</span>, etc.) and auto-substituted into tool command templates.
+      </p>
+
+      <form id="apiVaultForm" onsubmit="event.preventDefault(); saveApiVaultFromModal();">
+        <div class="vault-section-title">// OSINT &amp; RECONNAISSANCE</div>
+        <div class="vault-grid">
+          <div class="field">
+            <label>SHODAN_API_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_SHODAN_API_KEY" placeholder="Shodan API Key">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_SHODAN_API_KEY')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>SECURITYTRAILS_API_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_SECURITYTRAILS_API_KEY" placeholder="SecurityTrails API Key">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_SECURITYTRAILS_API_KEY')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>HUNTER_API_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_HUNTER_API_KEY" placeholder="Hunter.io API Key">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_HUNTER_API_KEY')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>VIRUSTOTAL_API_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_VIRUSTOTAL_API_KEY" placeholder="VirusTotal API Key">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_VIRUSTOTAL_API_KEY')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>CENSYS_API_ID</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_CENSYS_API_ID" placeholder="Censys API ID">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_CENSYS_API_ID')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>CENSYS_API_SECRET</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_CENSYS_API_SECRET" placeholder="Censys API Secret">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_CENSYS_API_SECRET')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>GITHUB_TOKEN</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_GITHUB_TOKEN" placeholder="GitHub Personal Access Token">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_GITHUB_TOKEN')">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-section-title" style="margin-top:14px">// AUTHENTICATION &amp; ASSESSMENT TOKENS</div>
+        <div class="vault-grid">
+          <div class="field" style="grid-column:1/-1">
+            <label>BEARER / AUTH TOKEN ({{TOKEN}} / $BEARER_TOKEN)</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_TOKEN" placeholder="eyJhbGciOi... (JWT / Session Token / API Key)">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_TOKEN')">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-section-title" style="margin-top:14px">// CLOUD &amp; INFRASTRUCTURE</div>
+        <div class="vault-grid">
+          <div class="field">
+            <label>AWS_ACCESS_KEY_ID</label>
+            <div class="vault-input-wrap">
+              <input type="text" id="vault_AWS_ACCESS_KEY_ID" placeholder="AKIA...">
+            </div>
+          </div>
+          <div class="field">
+            <label>AWS_SECRET_ACCESS_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_AWS_SECRET_ACCESS_KEY" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_AWS_SECRET_ACCESS_KEY')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>AWS_DEFAULT_REGION</label>
+            <input type="text" id="vault_AWS_DEFAULT_REGION" placeholder="us-east-1">
+          </div>
+        </div>
+
+        <div class="vault-section-title" style="margin-top:14px">// AI &amp; LLM ASSISTANTS</div>
+        <div class="vault-grid">
+          <div class="field">
+            <label>OPENAI_API_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_OPENAI_API_KEY" placeholder="sk-proj-...">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_OPENAI_API_KEY')">👁️</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>ANTHROPIC_API_KEY</label>
+            <div class="vault-input-wrap">
+              <input type="password" id="vault_ANTHROPIC_API_KEY" placeholder="sk-ant-...">
+              <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_ANTHROPIC_API_KEY')">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-section-title" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+          <span>// CUSTOM ENVIRONMENT VARIABLES / KEYS</span>
+          <button type="button" class="btn-micro" onclick="addCustomVaultRow()">+ Add Variable</button>
+        </div>
+        <div id="customVaultRows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;border-top:1px solid var(--border2);padding-top:14px">
+          <span id="vaultSaveNotice" style="font-size:10px;color:var(--green);display:none">✓ Vault saved successfully!</span>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <button type="button" class="btn btn-secondary" onclick="closeApiVaultModal()">CLOSE</button>
+            <button type="submit" class="btn">💾 SAVE TO VAULT</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- PRE-EXECUTION REQUIRED KEY PROMPT MODAL -->
+  <div id="keyPromptModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:520px;padding:22px">
+      <div class="modal-title" style="color:var(--yellow);margin-bottom:10px">
+        🔑 SCRIPT REQUIRES API KEY / PARAMETERS
+      </div>
+      <p style="font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.5">
+        The tool command requires the following parameter(s) / API key(s) to execute against <b style="color:var(--white)">{{ project.name }}</b>:
+      </p>
+      <div id="keyPromptFieldsList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--dim);margin-bottom:18px;cursor:pointer">
+        <input type="checkbox" id="chkSaveKeyToVault" checked style="accent-color:var(--green)">
+        <span>Remember entered key(s) in API Vault for future scripts in this assessment</span>
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" class="btn btn-secondary" onclick="closeKeyPromptModal()">CANCEL</button>
+        <button type="button" class="btn" id="btnConfirmKeyPrompt" onclick="confirmKeyPromptAndRun()">▶ PROCEED &amp; RUN SCRIPT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSESSMENT ARTIFACTS & OUTPUT DIRECTORY MODAL -->
+  <div id="artifactsModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:680px;max-height:85vh;overflow-y:auto;padding:22px">
+      <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:var(--green)">
+        <span>📁 ASSESSMENT ARTIFACTS &amp; OUTPUT DIRECTORY</span>
+        <button type="button" class="btn-action close" onclick="closeArtifactsModal()">✕</button>
+      </div>
+      <div style="font-size:10px;color:var(--cyan);margin-bottom:14px;background:rgba(0,0,0,.4);padding:6px 10px;border:1px solid var(--border2);border-radius:2px;display:flex;justify-content:space-between;align-items:center">
+        <span>📂 Directory: <b id="artifactsDirPath">assessments/</b></span>
+        <button type="button" class="btn-micro" onclick="loadProjectArtifacts({{ project.id }})">🔄 Refresh</button>
+      </div>
+      <div id="artifactsFilesList" style="min-height:160px">
+        <div style="text-align:center;color:var(--dim);padding:30px 0;font-size:11px">Loading artifacts...</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--border2);padding-top:12px">
+        <button type="button" class="btn btn-secondary" onclick="closeArtifactsModal()">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILE VIEWER MODAL -->
+  <div id="fileViewerModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:780px;max-height:88vh;display:flex;flex-direction:column;padding:20px">
+      <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:var(--cyan)">
+        <span id="fileViewerTitle">📄 FILE PREVIEW</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <a id="fileViewerDownloadBtn" href="#" class="btn-pill" style="text-decoration:none">⬇️ DOWNLOAD</a>
+          <button type="button" class="btn-action close" onclick="closeFileViewerModal()">✕</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;background:#030508;border:1px solid var(--border2);padding:10px;font-family:var(--mono);font-size:11px;color:var(--white);white-space:pre-wrap;word-break:break-all;max-height:540px" id="fileViewerContent"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

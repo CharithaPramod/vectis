@@ -1,0 +1,241 @@
+{
+  "id": "api-owasp-top10",
+  "name": "API Security Testing (OWASP API Top 10)",
+  "description": "Comprehensive security testing framework based on OWASP API Security Top 10 (2023) covering authorization, authentication, resource consumption, and automated threats.",
+  "category": "API",
+  "icon": "\ud83d\udd0c",
+  "version": "2023",
+  "is_builtin": true,
+  "phases": [
+    {
+      "id": "API-AUTHZ",
+      "name": "API Authorization & Access Control",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "API1-BOLA",
+          "name": "API1:2023 Broken Object Level Authorization (BOLA / IDOR)",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1068 - Exploitation for Privilege Escalation"
+          ],
+          "mitre": [
+            "Privilege Escalation",
+            "T1068"
+          ],
+          "cwe": [
+            "CWE-639",
+            "CWE-284"
+          ],
+          "cvss_score": "8.6 (High)",
+          "how": "Test if changing object IDs (user IDs, account numbers, order UUIDs, file keys) in URL paths or request bodies allows accessing or manipulating other users' data without authorization.",
+          "cases": [
+            "Create two separate test accounts (User A and User B)",
+            "Capture API request with User A's token accessing User A's resource (e.g. GET /api/v1/orders/101)",
+            "Substitute User A's resource ID with User B's resource ID (e.g. GET /api/v1/orders/102)",
+            "Test HTTP methods: GET, PUT, PATCH, DELETE"
+          ],
+          "expected": "Server checks that the authenticated user owns or is authorized to access the requested resource ID, returning 403 Forbidden or 404 Not Found otherwise.",
+          "recommendation": "Implement an authorization mechanism checking user ownership at the data-access layer for every object ID parameter. Use unpredictable random UUIDv4 identifiers.",
+          "tools": [
+            "burpsuite",
+            "curl",
+            "postman",
+            "autorize"
+          ],
+          "command_template": "curl -ik -X GET \"{{URL}}\" -H \"Authorization: Bearer {{TOKEN}}\"",
+          "references": [
+            "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/"
+          ]
+        },
+        {
+          "id": "API3-BOPLA",
+          "name": "API3:2023 Broken Object Property Level Authorization (Mass Assignment & Excessive Data)",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1068 - Exploitation for Privilege Escalation"
+          ],
+          "mitre": [
+            "Privilege Escalation",
+            "T1068"
+          ],
+          "cwe": [
+            "CWE-915",
+            "CWE-213"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Test for Mass Assignment (injecting unauthorized properties like isAdmin, role, balance in JSON payloads) and Excessive Data Exposure (endpoints returning full database models with sensitive internal fields).",
+          "cases": [
+            "Send PUT/PATCH requests with extra fields: {\"is_admin\": true, \"role\": \"admin\", \"status\": \"verified\"}",
+            "Inspect GET responses to verify if internal sensitive attributes (hashes, SSNs, audit logs) are exposed",
+            "Test partial updates on user profiles and tenant settings"
+          ],
+          "expected": "Endpoints only accept explicitly allowlisted request properties (DTOs) and return only necessary fields in API responses.",
+          "recommendation": "Use Data Transfer Objects (DTOs) with strict property schemas for input deserialization. Apply response filtering / serialization projections to omit internal fields.",
+          "tools": [
+            "burpsuite",
+            "arjun",
+            "curl"
+          ],
+          "command_template": "curl -ik -X PUT \"{{URL}}\" -H \"Authorization: Bearer {{TOKEN}}\" -H \"Content-Type: application/json\" -d '{\"is_admin\":true,\"role\":\"superadmin\"}'",
+          "references": [
+            "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/"
+          ]
+        },
+        {
+          "id": "API5-BFLA",
+          "name": "API5:2023 Broken Function Level Authorization (BFLA)",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1068 - Exploitation for Privilege Escalation"
+          ],
+          "mitre": [
+            "Privilege Escalation",
+            "T1068"
+          ],
+          "cwe": [
+            "CWE-285"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test if standard unprivileged users can access administrative or privileged API endpoints by guessing URL paths (/api/v1/admin/users, /api/v1/export) or changing HTTP methods (GET -> DELETE / PUT).",
+          "cases": [
+            "Access administrative API endpoints using a standard user token or without auth",
+            "Try HTTP verb tampering: change GET /api/users to DELETE /api/users/1",
+            "Check for hidden / internal management routes"
+          ],
+          "expected": "Administrative and privileged functions enforce strict role-based access control (RBAC), returning 403 Forbidden for non-admin tokens.",
+          "recommendation": "Enforce explicit RBAC / ABAC checks on every administrative endpoint and HTTP verb. Deny access by default.",
+          "tools": [
+            "burpsuite",
+            "curl",
+            "kiterunner"
+          ],
+          "command_template": "curl -ik -X DELETE \"{{URL}}/admin/users/1\" -H \"Authorization: Bearer {{TOKEN}}\"",
+          "references": [
+            "https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "API-RESOURCE",
+      "name": "API Rate Limiting & Resource Management",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "API4-RATE",
+          "name": "API4:2023 Unrestricted Resource Consumption & Lack of Rate Limiting",
+          "sev": "medium",
+          "mitre_tactic": "Impact",
+          "mitre_technique": [
+            "T1499 - Endpoint Denial of Service"
+          ],
+          "mitre": [
+            "Impact",
+            "T1499"
+          ],
+          "cwe": [
+            "CWE-770",
+            "CWE-400"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Test whether API endpoints enforce rate limits, payload size caps, pagination restrictions (limit/page/size), execution timeouts, and memory limits when subjected to high-frequency or heavy requests.",
+          "cases": [
+            "Send rapid burst of requests (100+ req/sec) to test rate limiting headers (X-RateLimit-*)",
+            "Request oversized pagination parameters: ?limit=1000000 or ?pageSize=999999",
+            "Send large request bodies or nested JSON arrays to test resource starvation"
+          ],
+          "expected": "API enforces rate limiting (HTTP 429 Too Many Requests), enforces maximum pagination limits (e.g. max limit=100), and limits request body sizes.",
+          "recommendation": "Implement API gateway rate limiting per client IP / API key. Enforce max limit on pagination and reject payloads exceeding size caps.",
+          "tools": [
+            "ffuf",
+            "curl",
+            "k6"
+          ],
+          "command_template": "ffuf -u \"{{URL}}\" -X {{METHOD}} -w /dev/null -t 50 -rate 100",
+          "references": [
+            "https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/"
+          ]
+        },
+        {
+          "id": "API6-SSRF",
+          "name": "API6:2023 Server Side Request Forgery (SSRF) in API Integrations",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "cvss_score": "8.6 (High)",
+          "how": "Test API endpoints that accept remote URLs (webhooks, file imports, image avatars, PDF generators, SSO callbacks) for SSRF vulnerabilities targeting internal services and cloud metadata.",
+          "cases": [
+            "Supply cloud metadata endpoints: http://169.254.169.254/latest/meta-data/",
+            "Supply internal localhost URLs: http://127.0.0.1:8080 or http://localhost:6379",
+            "Test DNS rebinding and URL redirect bypasses"
+          ],
+          "expected": "API validates user-supplied URLs against a strict allowlist and blocks connections to private RFC 1918 and loopback/metadata IP addresses.",
+          "recommendation": "Isolate remote fetching in a segregated network sandbox. Validate remote IP addresses post-DNS-resolution and block 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, and 169.254.169.254.",
+          "tools": [
+            "burpsuite",
+            "curl",
+            "interactsh"
+          ],
+          "command_template": "curl -ik -X POST \"{{URL}}\" -H \"Content-Type: application/json\" -d '{\"webhook_url\":\"http://169.254.169.254/latest/meta-data/\"}'",
+          "references": [
+            "https://owasp.org/API-Security/editions/2023/en/0xa6-server-side-request-forgery/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "API-INVENTORY",
+      "name": "API Inventory & Asset Management",
+      "scope": "project",
+      "items": [
+        {
+          "id": "API9-INVENTORY",
+          "name": "API9:2023 Improper Inventory Management (Shadow & Deprecated APIs)",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1595 - Active Scanning"
+          ],
+          "mitre": [
+            "Discovery",
+            "T1595"
+          ],
+          "cwe": [
+            "CWE-1059"
+          ],
+          "cvss_score": "7.2 (High)",
+          "how": "Discover unmaintained or deprecated API versions (/api/v1/ vs /api/v2/, /api/v3/), staging/test endpoints (/api/beta, /api/dev), and publicly exposed Swagger / OpenAPI documentation or Postman collections.",
+          "cases": [
+            "Fuzz API version paths (/api/v1, /api/v2, /api/beta, /api/staging)",
+            "Check for exposed documentation endpoints: /swagger-ui.html, /openapi.json, /v2/api-docs, /api/docs",
+            "Verify whether deprecated API versions still connect to production database without current security patches"
+          ],
+          "expected": "Exposed API endpoints are documented in an active inventory. Deprecated endpoints are decommissioned.",
+          "recommendation": "Maintain an accurate API catalog. Retire and remove deprecated API endpoints. Restrict access to internal documentation / swagger endpoints to authorized internal networks.",
+          "tools": [
+            "kiterunner",
+            "ffuf",
+            "nuclei"
+          ],
+          "command_template": "nuclei -u \"{{URL}}\" -tags swagger,openapi,api",
+          "references": [
+            "https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/"
+          ]
+        }
+      ]
+    }
+  ]
+}

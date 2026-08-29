@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<items burpVersion="2024.1" exportTime="Mon Aug 24 2026">
+<item>
+<time>Mon Aug 24 12:00:00 2026</time>
+<url><![CDATA[https://demo.test/products.aspx?id=5]]></url>
+<host ip="10.0.0.5">demo.test</host>
+<port>443</port>
+<protocol>https</protocol>
+<method><![CDATA[GET]]></method>
+<path><![CDATA[/products.aspx]]></path>
+<extension></extension>
+<request base64="true">R0VUIC9wcm9kdWN0cy5hc3B4P2lkPTUgSFRUUC8xLjENCkhvc3Q6IGRlbW8udGVzdA0KQ29va2llOiBBU1AuTkVUX1Nlc3Npb25JZD1hYmMNCg0K</request>
+<status>200</status>
+<responselength>1234</responselength>
+<mimetype>HTML</mimetype>
+<comment></comment>
+</item>
+<item>
+<time>Mon Aug 24 12:00:00 2026</time>
+<url><![CDATA[https://demo.test/account/login]]></url>
+<host ip="10.0.0.5">demo.test</host>
+<port>443</port>
+<protocol>https</protocol>
+<method><![CDATA[POST]]></method>
+<path><![CDATA[/account/login]]></path>
+<extension></extension>
+<request base64="true">UE9TVCAvYWNjb3VudC9sb2dpbiBIVFRQLzEuMQ0KSG9zdDogZGVtby50ZXN0DQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL3gtd3d3LWZvcm0tdXJsZW5jb2RlZA0KQ29udGVudC1MZW5ndGg6IDI5DQoNCnVzZXJuYW1lPXRlc3QmcGFzc3dvcmQ9dGVzdDE=</request>
+<status>200</status>
+<responselength>1234</responselength>
+<mimetype>HTML</mimetype>
+<comment></comment>
+</item>
+<item>
+<time>Mon Aug 24 12:00:00 2026</time>
+<url><![CDATA[https://demo.test/api/v1/orders/123]]></url>
+<host ip="10.0.0.5">demo.test</host>
+<port>443</port>
+<protocol>https</protocol>
+<method><![CDATA[GET]]></method>
+<path><![CDATA[/api/v1/orders/123]]></path>
+<extension></extension>
+<request base64="true">R0VUIC9hcGkvdjEvb3JkZXJzLzEyMyBIVFRQLzEuMQ0KSG9zdDogZGVtby50ZXN0DQpBdXRob3JpemF0aW9uOiBCZWFyZXIgeHl6DQoNCg==</request>
+<status>200</status>
+<responselength>1234</responselength>
+<mimetype>JSON</mimetype>
+<comment></comment>
+</item>
+<item>
+<time>Mon Aug 24 12:00:00 2026</time>
+<url><![CDATA[https://demo.test/upload.ashx]]></url>
+<host ip="10.0.0.5">demo.test</host>
+<port>443</port>
+<protocol>https</protocol>
+<method><![CDATA[POST]]></method>
+<path><![CDATA[/upload.ashx]]></path>
+<extension></extension>
+<request base64="true">UE9TVCAvdXBsb2FkLmFzaHggSFRUUC8xLjENCkhvc3Q6IGRlbW8udGVzdA0KQ29udGVudC1UeXBlOiBtdWx0aXBhcnQvZm9ybS1kYXRhOyBib3VuZGFyeT1YDQpDb250ZW50LUxlbmd0aDogNTANCg0KLS1YDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImZpbGUiOyBmaWxlbmFtZT0iYS50eHQiDQoNCmRhdGENCi0tWC0t</request>
+<status>200</status>
+<responselength>1234</responselength>
+<mimetype>HTML</mimetype>
+<comment></comment>
+</item>
+<item>
+<time>Mon Aug 24 12:00:00 2026</time>
+<url><![CDATA[https://demo.test/about]]></url>
+<host ip="10.0.0.5">demo.test</host>
+<port>443</port>
+<protocol>https</protocol>
+<method><![CDATA[GET]]></method>
+<path><![CDATA[/about]]></path>
+<extension></extension>
+<request base64="true">R0VUIC9hYm91dCBIVFRQLzEuMQ0KSG9zdDogZGVtby50ZXN0DQoNCg==</request>
+<status>200</status>
+<responselength>1234</responselength>
+<mimetype>HTML</mimetype>
+<comment></comment>
+</item>
+<item>
+<time>Mon Aug 24 12:00:00 2026</time>
+<url><![CDATA[https://demo.test/admin/users?page=1]]></url>
+<host ip="10.0.0.5">demo.test</host>
+<port>443</port>
+<protocol>https</protocol>
+<method><![CDATA[GET]]></method>
+<path><![CDATA[/admin/users]]></path>
+<extension></extension>
+<request base64="true">R0VUIC9hZG1pbi91c2Vycz9wYWdlPTEgSFRUUC8xLjENCkhvc3Q6IGRlbW8udGVzdA0KDQo=</request>
+<status>200</status>
+<responselength>1234</responselength>
+<mimetype>HTML</mimetype>
+<comment></comment>
+</item>
+</items>

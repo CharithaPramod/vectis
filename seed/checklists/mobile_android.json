@@ -1,0 +1,520 @@
+{
+  "id": "mobile-android-mastg",
+  "name": "Mobile (Android) Application Testing (OWASP MASTG / MASVS)",
+  "description": "Comprehensive security testing checklist for Android applications based on OWASP Mobile Application Security Testing Guide (MASTG) and MASVS v2.0.",
+  "category": "Mobile",
+  "icon": "\ud83e\udd16",
+  "version": "2.0",
+  "is_builtin": true,
+  "phases": [
+    {
+      "id": "MASVS-STORAGE",
+      "name": "Data Storage and Privacy (MASVS-STORAGE)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-STORAGE-01",
+          "name": "Testing Local Data Storage for Sensitive Data",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-312",
+            "CWE-922"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Inspect app sandbox directories (/data/data/<package>/), SharedPreferences, SQLite databases, internal/external storage, and cache for unencrypted credentials, PII, auth tokens, or private encryption keys.",
+          "cases": [
+            "Inspect /data/data/<package>/shared_prefs/*.xml for plaintext credentials or tokens",
+            "Examine SQLite / Room databases in /data/data/<package>/databases/ using sqlite3",
+            "Check external storage (SD card / scoped storage) for world-readable application files",
+            "Verify whether sensitive cached HTTP responses are saved in cache/ directory"
+          ],
+          "expected": "No sensitive data (tokens, passwords, PII, keys) stored in plaintext or unencrypted files.",
+          "recommendation": "Use Android Keystore and EncryptedSharedPreferences (AndroidX Security library) for sensitive key/value storage. Encrypt SQLite databases using SQLCipher. Enforce proper file permissions (MODE_PRIVATE).",
+          "tools": [
+            "adb",
+            "sqlite3",
+            "objection",
+            "frida"
+          ],
+          "command_template": "adb shell \"run-as {{PACKAGE}} ls -la /data/data/{{PACKAGE}}/shared_prefs/\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-STORAGE-02",
+          "name": "Testing Application Backup Configuration (android:allowBackup)",
+          "sev": "medium",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-922"
+          ],
+          "cvss_score": "5.5 (Medium)",
+          "how": "Verify if android:allowBackup is enabled in AndroidManifest.xml. If enabled, an attacker with physical or USB debugging access can extract full application private data via 'adb backup'.",
+          "cases": [
+            "Decompile AndroidManifest.xml and check if android:allowBackup='true'",
+            "Attempt adb backup -f backup.ab -noapk {{PACKAGE}} and extract with abe.jar"
+          ],
+          "expected": "android:allowBackup is set to 'false' or strict full-backup-content rules are defined.",
+          "recommendation": "Set android:allowBackup=\"false\" in AndroidManifest.xml unless backup is explicitly required. If required, implement strict backup_rules.xml excluding private databases, keystores, and shared_prefs.",
+          "tools": [
+            "aapt",
+            "adb",
+            "jadx"
+          ],
+          "command_template": "adb shell dumpsys package {{PACKAGE}} | grep -i flags",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0002/"
+          ]
+        },
+        {
+          "id": "MASTG-STORAGE-03",
+          "name": "Testing Sensitive Data in Logs (Logcat)",
+          "sev": "medium",
+          "mitre_tactic": "Collection",
+          "mitre_technique": [
+            "T1413 - Access Sensitive Data in System Logs"
+          ],
+          "mitre": [
+            "Collection",
+            "T1413"
+          ],
+          "cwe": [
+            "CWE-532"
+          ],
+          "cvss_score": "5.3 (Medium)",
+          "how": "Monitor Android system logs (Logcat) while interacting with authentication, payments, profile edits, and sensitive transactions to detect leaking credentials, session tokens, or PII.",
+          "cases": [
+            "Run adb logcat while authenticating and performing API requests",
+            "Search logs for passwords, JWT tokens, session IDs, credit cards, or internal error stack traces"
+          ],
+          "expected": "Production release builds must not output sensitive parameters, credentials, or PII to system logs.",
+          "recommendation": "Remove all Log.d(), Log.v(), and System.out.println() statements in production builds using ProGuard/R8 release rules (e.g. -assumenosideeffects class android.util.Log { *; }).",
+          "tools": [
+            "adb",
+            "pidcat"
+          ],
+          "command_template": "adb logcat -d | grep -iE \"{{PACKAGE}}|password|token|bearer|secret|auth\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0003/"
+          ]
+        },
+        {
+          "id": "MASTG-STORAGE-04",
+          "name": "Testing Memory for Sensitive Data & Heap Dumps",
+          "sev": "medium",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-316"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Capture an Android runtime process heap dump using 'am dumpheap' or Frida and inspect memory strings for unencrypted passwords, encryption keys, and session tokens lingering indefinitely.",
+          "cases": [
+            "Authenticate in the application and perform critical actions",
+            "Dump process heap to disk via adb shell am dumpheap",
+            "Convert hprof with hprof-conv and search memory strings for credentials"
+          ],
+          "expected": "Sensitive credentials are wiped from memory immediately after use (using char[] arrays instead of immutable java.lang.String).",
+          "recommendation": "Store passwords and encryption keys in char[] or byte[] arrays and overwrite them with zeroes (Arrays.fill) immediately after use.",
+          "tools": [
+            "adb",
+            "hprof-conv",
+            "frida",
+            "MAT"
+          ],
+          "command_template": "adb shell am dumpheap {{PACKAGE}} /data/local/tmp/heap.hprof && adb pull /data/local/tmp/heap.hprof",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-STORAGE/MASTG-TEST-0004/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MASVS-CRYPTO",
+      "name": "Cryptography (MASVS-CRYPTO)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-CRYPTO-01",
+          "name": "Testing for Insecure or Broken Cryptographic Algorithms",
+          "sev": "high",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1600 - Weaken Encryption"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1600"
+          ],
+          "cwe": [
+            "CWE-327",
+            "CWE-328"
+          ],
+          "cvss_score": "7.4 (High)",
+          "how": "Analyze decompiled Java/Kotlin source and native libraries for weak cryptographic algorithms like MD5, SHA-1, DES, 3DES, RC4, or AES in ECB mode.",
+          "cases": [
+            "Search decompiled code for Cipher.getInstance(\"AES/ECB\") or \"DES\"",
+            "Search for MessageDigest.getInstance(\"MD5\") or \"SHA-1\" for security-critical checks",
+            "Verify IV (Initialization Vector) randomness: ensure static or hardcoded IVs are not used"
+          ],
+          "expected": "Strong algorithms (AES-GCM-256, ChaCha20-Poly1305, SHA-256+, RSA 2048+) with cryptographically secure random IVs.",
+          "recommendation": "Use AES-GCM or AES-CBC with HMAC-SHA256. Use SecureRandom for IV generation. Do not use ECB mode or broken hashing algorithms (MD5/SHA1).",
+          "tools": [
+            "jadx",
+            "semgrep",
+            "objection"
+          ],
+          "command_template": "jadx -d ./jadx_out {{APK_FILE}} && grep -rn \"Cipher.getInstance\" ./jadx_out",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-CRYPTO/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-CRYPTO-02",
+          "name": "Testing for Hardcoded Cryptographic Keys & Secrets",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1552 - Unsecured Credentials"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-798"
+          ],
+          "cvss_score": "8.2 (High)",
+          "how": "Search decompiled classes, assets, strings.xml, and native .so libraries for hardcoded AES/HMAC keys, private certificates, AWS/Firebase keys, and API secrets.",
+          "cases": [
+            "Decompile APK with JADX and search strings for private keys and tokens",
+            "Run trufflehog / gitleaks against decompiled codebase",
+            "Inspect native binaries (.so) with 'strings' and 'rabin2'"
+          ],
+          "expected": "No static cryptographic keys or backend secrets hardcoded within the APK bundle.",
+          "recommendation": "Use Android Keystore for client-side cryptographic key generation and storage. Store third-party backend secrets on a secure server, not within the client application.",
+          "tools": [
+            "jadx",
+            "trufflehog",
+            "strings"
+          ],
+          "command_template": "grep -rniE \"(api_key|secret|password|bearer|private_key)\" ./jadx_out/sources",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-CRYPTO/MASTG-TEST-0002/"
+          ]
+        },
+        {
+          "id": "MASTG-CRYPTO-03",
+          "name": "Testing Android KeyStore Usage and Key Protection",
+          "sev": "medium",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-320"
+          ],
+          "cvss_score": "7.1 (High)",
+          "how": "Verify that cryptographic keys are generated inside the Android KeyStore provider with hardware-backed security (TEE / StrongBox) and proper user authentication requirements.",
+          "cases": [
+            "Check if KeyStore provider is initialized with KeyGenParameterSpec",
+            "Verify if setUserAuthenticationRequired(true) is used for biometric-bound keys",
+            "Inspect KeyStore aliases with Objection"
+          ],
+          "expected": "Keys generated in Android KeyStore (AndroidKeyStore provider) and protected with StrongBox/TEE when available.",
+          "recommendation": "Use AndroidKeyStore provider with KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT and setIsStrongBoxBacked(true) where available.",
+          "tools": [
+            "objection",
+            "frida"
+          ],
+          "command_template": "objection -g {{PACKAGE}} explore --startup-command \"android keystore list\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-CRYPTO/MASTG-TEST-0003/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MASVS-NETWORK",
+      "name": "Network Communication (MASVS-NETWORK)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-NETW-01",
+          "name": "Testing Network Security Configuration & Cleartext Traffic",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1437 - Application Layer Protocol"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1437"
+          ],
+          "cwe": [
+            "CWE-319"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Check res/xml/network_security_config.xml and AndroidManifest.xml for android:usesCleartextTraffic='true' or domain-config cleartextTrafficPermitted='true'.",
+          "cases": [
+            "Inspect AndroidManifest.xml for android:usesCleartextTraffic='true'",
+            "Review network_security_config.xml for insecure base-config or domain-config rules",
+            "Verify all network calls use HTTPS with TLS 1.2/1.3"
+          ],
+          "expected": "Cleartext HTTP traffic is completely disabled (cleartextTrafficPermitted='false'). All endpoints enforce HTTPS.",
+          "recommendation": "Set android:usesCleartextTraffic=\"false\" and configure network_security_config.xml to forbid cleartext communication across all domains.",
+          "tools": [
+            "jadx",
+            "apktool"
+          ],
+          "command_template": "cat ./jadx_out/resources/res/xml/network_security_config.xml 2>/dev/null || echo \"No custom network security config found\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-NETWORK/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-NETW-02",
+          "name": "Testing SSL / TLS Certificate Pinning & Pinning Bypass",
+          "sev": "medium",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1600 - Weaken Encryption"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1600"
+          ],
+          "cwe": [
+            "CWE-295"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Verify if the application implements SSL/TLS certificate pinning (via Network Security Config pin-set, OkHttp CertificatePinner, or TrustKit). Test resilience against pinning bypass via Frida / Objection.",
+          "cases": [
+            "Intercept traffic using Burp Suite proxy with user-installed CA cert",
+            "Check if app refuses connections without pinning bypass",
+            "Run Objection / Frida pinning bypass script to test hookability"
+          ],
+          "expected": "Certificate pinning is implemented on all critical API domains and validates public key hashes (SPKI pins).",
+          "recommendation": "Implement pin-set in network_security_config.xml or use OkHttp CertificatePinner with primary and backup backup public key hashes.",
+          "tools": [
+            "burpsuite",
+            "objection",
+            "frida"
+          ],
+          "command_template": "objection -g {{PACKAGE}} explore --startup-command \"android sslpinning disable\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-NETWORK/MASTG-TEST-0002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MASVS-PLATFORM",
+      "name": "Platform Interaction & IPC (MASVS-PLATFORM)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-PLAT-01",
+          "name": "Testing Exported Activities and Intent Spoofing",
+          "sev": "high",
+          "mitre_tactic": "Privilege Escalation",
+          "mitre_technique": [
+            "T1402 - Intent Spoofing"
+          ],
+          "mitre": [
+            "Privilege Escalation",
+            "T1402"
+          ],
+          "cwe": [
+            "CWE-926"
+          ],
+          "cvss_score": "7.8 (High)",
+          "how": "Inspect AndroidManifest.xml for exported activities (android:exported='true' or implicit intent-filters without explicit android:exported='false'). Trigger exported activities directly using 'am start' to bypass authentication.",
+          "cases": [
+            "List all exported activities using aapt / jadx",
+            "Trigger internal / dashboard activities via adb shell am start",
+            "Verify if authentication check can be bypassed"
+          ],
+          "expected": "Internal activities are set to android:exported='false' or protected with strong custom signature permissions.",
+          "recommendation": "Explicitly declare android:exported=\"false\" on all activities that should not be invoked by external apps. Require signature-level permissions for inter-app communication.",
+          "tools": [
+            "adb",
+            "drozer",
+            "jadx"
+          ],
+          "command_template": "adb shell am start -n {{PACKAGE}}/{{ACTIVITY_NAME}}",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-PLATFORM/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-PLAT-02",
+          "name": "Testing Exported Content Providers & Injection Flaws",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-927",
+            "CWE-89"
+          ],
+          "cvss_score": "8.6 (High)",
+          "how": "Query exported content providers via adb or drozer to inspect if unauthorized apps can read or modify internal app databases, or inject SQL payloads through URI query parameters.",
+          "cases": [
+            "Query content provider URIs via adb shell content query",
+            "Test SQL injection in selection arguments: --where \"1=1\"",
+            "Check path traversal in openFile() implementation"
+          ],
+          "expected": "Content providers are not exported unless necessary, and enforce parameterized queries and path sanitization.",
+          "recommendation": "Set android:exported=\"false\" on content providers. If export is required, protect with signature permissions and sanitize all file paths / SQL arguments.",
+          "tools": [
+            "adb",
+            "drozer"
+          ],
+          "command_template": "adb shell content query --uri content://{{PACKAGE}}.provider/data",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-PLATFORM/MASTG-TEST-0002/"
+          ]
+        },
+        {
+          "id": "MASTG-PLAT-03",
+          "name": "Testing Deep Links and Custom URL Schemes",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1402 - Intent Spoofing"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1402"
+          ],
+          "cwe": [
+            "CWE-939"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Review custom URI schemes (e.g. myapp://) and App Links in AndroidManifest.xml. Test if malicious web pages or external apps can trigger sensitive actions, CSRF, account takeovers, or open redirects.",
+          "cases": [
+            "Extract all custom URL scheme handlers from AndroidManifest.xml",
+            "Trigger deep links with malicious parameters via adb shell am start -d \"scheme://path?param=payload\"",
+            "Verify if deep link actions require active session verification"
+          ],
+          "expected": "Deep links validate origin, enforce state tokens for authentication handshakes, and use verified Android App Links (assetlinks.json) instead of unverified custom URL schemes.",
+          "recommendation": "Migrate from custom schemes to verified Android App Links (autoVerify='true'). Sanitize all incoming deep link parameters and never perform sensitive actions (transfers, auth state changes) automatically without user confirmation.",
+          "tools": [
+            "adb",
+            "jadx"
+          ],
+          "command_template": "adb shell am start -a android.intent.action.VIEW -d \"{{SCHEME}}://test?action=login\" {{PACKAGE}}",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-PLATFORM/MASTG-TEST-0003/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MASVS-RESILIENCE",
+      "name": "Reverse Engineering & Resilience (MASVS-RESILIENCE)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-RESI-01",
+          "name": "Testing Root Detection and Bypass Mechanisms",
+          "sev": "medium",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1624 - Event Triggered Execution"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1624"
+          ],
+          "cwe": [
+            "CWE-693"
+          ],
+          "cvss_score": "5.5 (Medium)",
+          "how": "Verify if the app detects rooted devices (checking su binaries, test-keys, Magisk packages, RootBeer library) and test how easily root detection can be hooked and bypassed using Frida / Objection.",
+          "cases": [
+            "Launch application on rooted device and inspect warning / termination behavior",
+            "Execute Objection root bypass command to test bypassability",
+            "Check if native C/C++ checks or SafetyNet / Play Integrity API are utilized"
+          ],
+          "expected": "App implements multi-layered root detection using both Java and native C checks, and verifies device integrity with Google Play Integrity API.",
+          "recommendation": "Implement multi-layered root checks (file system, system properties, native checks) combined with Google Play Integrity API server-side token validation.",
+          "tools": [
+            "objection",
+            "frida",
+            "magisk"
+          ],
+          "command_template": "objection -g {{PACKAGE}} explore --startup-command \"android root disable\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-RESILIENCE/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-RESI-02",
+          "name": "Testing Code Obfuscation and Debuggable Flag",
+          "sev": "high",
+          "mitre_tactic": "Discovery",
+          "mitre_technique": [
+            "T1418 - Software Discovery"
+          ],
+          "mitre": [
+            "Discovery",
+            "T1418"
+          ],
+          "cwe": [
+            "CWE-215",
+            "CWE-656"
+          ],
+          "cvss_score": "7.1 (High)",
+          "how": "Verify that android:debuggable='false' in production builds, and verify that ProGuard / R8 / DexGuard is enabled to obfuscate class, method, and variable names.",
+          "cases": [
+            "Check if android:debuggable='true' via aapt dump badging",
+            "Decompile APK with JADX and check if class and method names are minified (e.g. a.b.c)"
+          ],
+          "expected": "android:debuggable is false. Source code is minified and obfuscated with ProGuard / R8.",
+          "recommendation": "Ensure minifyEnabled true and shrinkResources true in build.gradle for release builds. Never ship debuggable builds in production.",
+          "tools": [
+            "aapt",
+            "jadx"
+          ],
+          "command_template": "aapt dump badging {{APK_FILE}} | grep -i debuggable",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/android/MASVS-RESILIENCE/MASTG-TEST-0002/"
+          ]
+        }
+      ]
+    }
+  ]
+}

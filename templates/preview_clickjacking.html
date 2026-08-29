@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}WebPT // Clickjacking & Framing Diagnostic Studio{% endblock %}
+{% block body %}
+<div id="topbar">
+  <div class="logo">WEBPT<span>://</span>CLICKJACKING<span>_STUDIO</span><span class="blink"></span></div>
+  <div class="tbar-status">
+    <a href="{% if project_id %}{{ url_for('project_view', project_id=project_id) }}{% else %}{{ url_for('dashboard') }}{% endif %}" class="btn-pill" style="text-decoration:none;margin-right:12px">← BACK TO ENGAGEMENT</a>
+    <span class="dot"></span> READY
+  </div>
+</div>
+
+<div class="preview-studio-container">
+  <!-- CONTROL PANEL -->
+  <div class="studio-sidebar">
+    <div class="studio-hdr">// FRAMING DIAGNOSTIC CONTROLS</div>
+
+    <!-- TARGET INPUT -->
+    <div class="field" style="margin-bottom:12px">
+      <label>TARGET URL TO FRAME</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="targetUrlInput" value="{{ target_url }}" placeholder="https://target.com/login" style="font-size:11px">
+        <button type="button" class="btn" style="padding:6px 12px;font-size:10px" onclick="reloadStudioTarget()">LOAD</button>
+      </div>
+    </div>
+
+    <!-- DIAGNOSTIC HEADERS SUMMARY -->
+    <div class="hdr-audit-box">
+      <div class="audit-hdr">
+        <span>🛡️ ANTI-FRAMING HEADERS AUDIT</span>
+        <button type="button" class="btn-micro" onclick="fetchLiveHeaders()">⟳ RE-CHECK</button>
+      </div>
+      
+      <div class="audit-row">
+        <span class="audit-key">X-Frame-Options:</span>
+        <span id="xfoStatus" class="audit-val {% if headers_info.xfo %}val-pass{% else %}val-fail{% endif %}">
+          {{ headers_info.xfo or 'MISSING (Vulnerable)' }}
+        </span>
+      </div>
+
+      <div class="audit-row">
+        <span class="audit-key">CSP frame-ancestors:</span>
+        <span id="cspStatus" class="audit-val {% if headers_info.frame_ancestors %}val-pass{% else %}val-fail{% endif %}">
+          {{ headers_info.frame_ancestors or 'MISSING (Vulnerable)' }}
+        </span>
+      </div>
+
+      <div class="audit-row">
+        <span class="audit-key">Frameable Verdict:</span>
+        <span id="verdictStatus" class="audit-val {% if headers_info.is_protected %}val-pass{% else %}val-fail{% endif %}">
+          {% if headers_info.is_protected %}🛡️ PROTECTED (DENY / SAMEORIGIN / CSP){% else %}⚠️ POTENTIALLY VULNERABLE{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- CLICKJACKING OVERLAY SIMULATOR CONTROLS -->
+    <div class="overlay-controls-box">
+      <div class="ctrl-hdr">🎯 CLICKJACKING OVERLAY SIMULATOR</div>
+      <p style="font-size:10px;color:var(--dim);margin:4px 0 10px 0;line-height:1.4">
+        Simulate an attacker decoy interface over the target iframe. Adjust the opacity slider to verify UI alignment and click interception.
+      </p>
+
+      <div class="slider-field">
+        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px">
+          <span>Target Iframe Opacity:</span>
+          <span id="opacityVal" style="color:var(--cyan);font-weight:bold">50%</span>
+        </div>
+        <input type="range" id="opacitySlider" min="0" max="100" value="50" style="width:100%" oninput="updateOpacity(this.value)">
+      </div>
+
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button type="button" class="btn-pill" onclick="setPresetOpacity(0)">0% (Hidden/Malicious)</button>
+        <button type="button" class="btn-pill" onclick="setPresetOpacity(50)">50% (Proof)</button>
+        <button type="button" class="btn-pill" onclick="setPresetOpacity(100)">100% (Visible)</button>
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <label>DECOY BUTTON TEXT</label>
+        <input type="text" id="decoyTextInput" value="🎁 CLAIM $500 REWARD NOW!" oninput="updateDecoyText(this.value)">
+      </div>
+    </div>
+
+    <!-- POC & REPORTING ACTIONS -->
+    <div class="poc-actions-box">
+      <div class="ctrl-hdr">📦 POC &amp; EVIDENCE ACTIONS</div>
+      
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <button type="button" class="btn btn-secondary" onclick="copyPocHtml()" style="width:100%;font-size:10px">
+          📋 COPY STANDALONE POC HTML
+        </button>
+        <a id="downloadPocBtn" href="{{ url_for('preview_clickjacking_poc', url=target_url) }}" download="clickjacking_poc.html" class="btn btn-secondary" style="text-align:center;text-decoration:none;font-size:10px">
+          💾 DOWNLOAD POC FILE (.HTML)
+        </a>
+        <a id="openNewTabBtn" href="{{ url_for('preview_clickjacking_poc', url=target_url) }}" target="_blank" class="btn" style="text-align:center;text-decoration:none;font-size:10px">
+          🚀 OPEN POC IN SEPARATE TAB
+        </a>
+
+        {% if project_id and vuln_id %}
+        <button type="button" class="btn" style="background:rgba(0,255,65,.15);border-color:var(--green);color:var(--green);font-size:10px;margin-top:4px" onclick="saveEvidenceToEngagement()">
+          📝 SAVE FINDING &amp; EVIDENCE TO NOTES
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE TESTING CANVAS -->
+  <div class="studio-canvas">
+    <div class="canvas-toolbar">
+      <div class="canvas-info">
+        <span class="canvas-title">CANVAS: <span id="currentFrameUrl">{{ target_url }}</span></span>
+        <span id="frameStateBadge" class="frame-state-badge">Loading...</span>
+      </div>
+      <div class="canvas-viewport-btns">
+        <button type="button" class="btn-viewport active" onclick="setCanvasSize('100%', '100%', this)">Full Size</button>
+        <button type="button" class="btn-viewport" onclick="setCanvasSize('1024px', '768px', this)">Desktop (1024x768)</button>
+        <button type="button" class="btn-viewport" onclick="setCanvasSize('414px', '736px', this)">Mobile (414x736)</button>
+        <button type="button" class="btn-viewport" onclick="reloadIframe()">🔄 Refresh Iframe</button>
+      </div>
+    </div>
+
+    <!-- IFRAME + OVERLAY STAGE -->
+    <div class="canvas-stage-wrapper">
+      <div id="canvasStage" class="canvas-stage" style="width:100%;height:calc(100vh - 120px)">
+        <!-- TARGET IFRAME -->
+        <iframe id="targetIframe" src="{{ target_url }}" class="target-iframe" style="opacity:0.5"
+                onload="onIframeLoadSuccess()" onerror="onIframeLoadError()"></iframe>
+
+        <!-- ATTACKER DECOY OVERLAY LAYER -->
+        <div id="decoyOverlay" class="decoy-overlay">
+          <div class="decoy-card">
+            <h3 style="color:#ff0055;margin:0 0 8px 0;font-size:16px">CONGRATULATIONS! YOU WON!</h3>
+            <p style="color:#fff;font-size:12px;margin:0 0 16px 0">Click the button below to confirm your free access voucher:</p>
+            <button id="decoyButton" class="decoy-btn" onclick="alert('Decoy button clicked! In a real attack, the user intended to click this button, but their click was hijacked to the underlying transparent iframe!')">
+              🎁 CLAIM $500 REWARD NOW!
+            </button>
+            <div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:12px">
+              [Clickjacking PoC Overlay Simulation Layer]
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROJECT_ID = {{ project_id|default('null') }};
+const VULN_ID = '{{ vuln_id|default('') }}';
+
+function reloadStudioTarget() {
+  const url = document.getElementById('targetUrlInput').value.trim();
+  if (!url) return;
+  const fullUrl = new URL(window.location.href);
+  fullUrl.searchParams.set('url', url);
+  window.location.href = fullUrl.toString();
+}
+
+function updateOpacity(val) {
+  document.getElementById('opacityVal').textContent = `${val}%`;
+  const iframe = document.getElementById('targetIframe');
+  if (iframe) iframe.style.opacity = (val / 100);
+}
+
+function setPresetOpacity(val) {
+  document.getElementById('opacitySlider').value = val;
+  updateOpacity(val);
+}
+
+function updateDecoyText(txt) {
+  document.getElementById('decoyButton').textContent = txt || '🎁 CLAIM REWARD';
+}
+
+function setCanvasSize(w, h, btn) {
+  const stage = document.getElementById('canvasStage');
+  stage.style.width = w;
+  stage.style.height = (h === '100%') ? 'calc(100vh - 120px)' : h;
+  document.querySelectorAll('.btn-viewport').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function reloadIframe() {
+  const iframe = document.getElementById('targetIframe');
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = 'Reloading...';
+  badge.className = 'frame-state-badge';
+  iframe.src = iframe.src;
+}
+
+function onIframeLoadSuccess() {
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = '● IFRAME LOADED (Framing Allowed)';
+  badge.className = 'frame-state-badge loaded';
+}
+
+function onIframeLoadError() {
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = '✕ BLOCKED / REFUSED (XFO/CSP Active)';
+  badge.className = 'frame-state-badge blocked';
+}
+
+function copyPocHtml() {
+  const targetUrl = document.getElementById('targetUrlInput').value;
+  const pocCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Clickjacking Proof of Concept - ${targetUrl}</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 20px; background: #111; color: #eee; }
+    .poc-banner { background: #222; border-left: 4px solid #00ff41; padding: 12px; margin-bottom: 20px; }
+    .stage { position: relative; width: 1000px; height: 700px; border: 2px dashed #ff0055; margin: 0 auto; overflow: hidden; }
+    .victim-frame { width: 100%; height: 100%; border: none; opacity: 0.5; position: absolute; top: 0; left: 0; z-index: 1; }
+    .attacker-decoy { position: absolute; top: 150px; left: 250px; z-index: 2; pointer-events: none; background: rgba(0,0,0,0.85); padding: 30px; border-radius: 8px; text-align: center; border: 1px solid #ff0055; }
+    .decoy-btn { background: #ff0055; color: #fff; font-size: 16px; font-weight: bold; padding: 14px 28px; border: none; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="poc-banner">
+    <h2>🎯 WebPT Clickjacking / UI Redressing Proof of Concept</h2>
+    <p>Target: <b>${targetUrl}</b></p>
+    <p>Adjust the iframe opacity in CSS (.victim-frame { opacity: 0.0001; }) for true transparent click-stealing demonstration.</p>
+  </div>
+  <div class="stage">
+    <iframe class="victim-frame" src="${targetUrl}"></iframe>
+    <div class="attacker-decoy">
+      <h3>🎁 SPECIAL PROMOTION</h3>
+      <p>Click below to verify your account and claim offer:</p>
+      <button class="decoy-btn">CLAIM REWARD NOW</button>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  navigator.clipboard.writeText(pocCode).then(() => {
+    alert('✓ Clickjacking PoC HTML copied to clipboard!');
+  }).catch(err => {
+    alert('Failed to copy: ' + err);
+  });
+}
+
+function fetchLiveHeaders() {
+  const url = document.getElementById('targetUrlInput').value;
+  if (!url) return;
+  
+  fetch(`/api/preview/check-headers?url=${encodeURIComponent(url)}`)
+    .then(r => r.json())
+    .then(data => {
+      const xfoEl = document.getElementById('xfoStatus');
+      const cspEl = document.getElementById('cspStatus');
+      const verdEl = document.getElementById('verdictStatus');
+
+      xfoEl.textContent = data.xfo || 'MISSING (Vulnerable)';
+      xfoEl.className = `audit-val ${data.xfo ? 'val-pass' : 'val-fail'}`;
+
+      cspEl.textContent = data.frame_ancestors || 'MISSING (Vulnerable)';
+      cspEl.className = `audit-val ${data.frame_ancestors ? 'val-pass' : 'val-fail'}`;
+
+      if (data.is_protected) {
+        verdEl.textContent = '🛡️ PROTECTED (DENY / SAMEORIGIN / CSP)';
+        verdEl.className = 'audit-val val-pass';
+      } else {
+        verdEl.textContent = '⚠️ POTENTIALLY VULNERABLE';
+        verdEl.className = 'audit-val val-fail';
+      }
+    });
+}
+
+function saveEvidenceToEngagement() {
+  if (!PROJECT_ID || !VULN_ID) return;
+  const targetUrl = document.getElementById('targetUrlInput').value;
+  const xfo = document.getElementById('xfoStatus').textContent.trim();
+  const csp = document.getElementById('cspStatus').textContent.trim();
+  const verdict = document.getElementById('verdictStatus').textContent.trim();
+
+  const notesText = `[Clickjacking & Framing Diagnostic Studio Evidence]\nTarget Tested: ${targetUrl}\nVerdict: ${verdict}\nX-Frame-Options: ${xfo}\nCSP frame-ancestors: ${csp}\nTimestamp: ${new Date().toISOString()}\n\nTester verified visual clickjacking simulation with overlay stage.`;
+
+  fetch(`/api/project/${PROJECT_ID}/checklist/${VULN_ID}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      notes: notesText,
+      status: verdict.includes('PROTECTED') ? 'pass' : 'fail'
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    alert('✓ Diagnostic results and evidence saved directly to engagement notes!');
+  })
+  .catch(err => {
+    alert('Error saving notes: ' + err);
+  });
+}
+</script>
+{% endblock %}

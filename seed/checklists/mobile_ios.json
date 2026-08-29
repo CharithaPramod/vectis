@@ -1,0 +1,265 @@
+{
+  "id": "mobile-ios-mastg",
+  "name": "Mobile (iOS) Application Testing (OWASP MASTG / MASVS)",
+  "description": "Comprehensive security testing checklist for iOS applications based on OWASP Mobile Application Security Testing Guide (MASTG) and MASVS v2.0.",
+  "category": "Mobile",
+  "icon": "\ud83c\udf4e",
+  "version": "2.0",
+  "is_builtin": true,
+  "phases": [
+    {
+      "id": "MASVS-IOS-STORAGE",
+      "name": "iOS Data Storage & Privacy (MASVS-STORAGE)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-IOS-STOR-01",
+          "name": "Testing Keychain Accessibility Attributes (kSecAttrAccessible)",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-312",
+            "CWE-922"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Inspect iOS Keychain items to verify if sensitive tokens and credentials use appropriate kSecAttrAccessible flags (e.g. kSecAttrAccessibleWhenUnlockedThisDeviceOnly instead of kSecAttrAccessibleAlways).",
+          "cases": [
+            "Dump keychain items using Objection or keychain-dumper",
+            "Verify accessibility class for every stored credential or cryptographic key",
+            "Ensure 'ThisDeviceOnly' is used to prevent keychain items from syncing to iCloud unencrypted"
+          ],
+          "expected": "Sensitive items use kSecAttrAccessibleWhenUnlockedThisDeviceOnly or kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly.",
+          "recommendation": "Store all sensitive data and tokens in iOS Keychain with kSecAttrAccessibleWhenUnlockedThisDeviceOnly. Never use deprecated kSecAttrAccessibleAlways.",
+          "tools": [
+            "objection",
+            "frida",
+            "keychain-dumper"
+          ],
+          "command_template": "objection -g {{BUNDLE_ID}} explore --startup-command \"ios keychain dump\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-STORAGE/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-IOS-STOR-02",
+          "name": "Testing Plists, NSUserDefaults, and CoreData for Sensitive Data",
+          "sev": "medium",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1409 - Stored Application Data"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1409"
+          ],
+          "cwe": [
+            "CWE-312"
+          ],
+          "cvss_score": "7.1 (High)",
+          "how": "Inspect application sandbox plist files (Library/Preferences/*.plist), NSUserDefaults, and CoreData SQLite databases for unencrypted passwords, session tokens, or PII.",
+          "cases": [
+            "Dump NSUserDefaults via Objection (ios nsuserdefaults get)",
+            "Inspect plist files in sandbox Library/Preferences/ using plutil",
+            "Examine CoreData SQLite files in Documents/ directory"
+          ],
+          "expected": "NSUserDefaults and plist files contain only non-sensitive configuration settings.",
+          "recommendation": "Never store sensitive tokens or credentials in NSUserDefaults or plist files. Migrate all sensitive storage to the iOS Keychain.",
+          "tools": [
+            "objection",
+            "plutil",
+            "sqlite3"
+          ],
+          "command_template": "objection -g {{BUNDLE_ID}} explore --startup-command \"ios nsuserdefaults get\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-STORAGE/MASTG-TEST-0002/"
+          ]
+        },
+        {
+          "id": "MASTG-IOS-STOR-03",
+          "name": "Testing App Snapshots and Background Screen Masking",
+          "sev": "low",
+          "mitre_tactic": "Collection",
+          "mitre_technique": [
+            "T1413 - Screen Capture"
+          ],
+          "mitre": [
+            "Collection",
+            "T1413"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "4.3 (Low)",
+          "how": "Verify if the iOS operating system takes unmasked screen snapshots when the application is sent to the background, storing sensitive account numbers or balances in Library/Caches/Snapshots/.",
+          "cases": [
+            "Navigate to sensitive account screen and send app to background",
+            "Inspect /Library/Caches/Snapshots/ directory on device for unblurred screenshot image files"
+          ],
+          "expected": "Application applies privacy overlay / blur mask in applicationDidEnterBackground / sceneDidEnterBackground.",
+          "recommendation": "Implement screen masking or blur view in sceneDidEnterBackground / applicationDidEnterBackground before snapshot is taken.",
+          "tools": [
+            "ssh",
+            "scp"
+          ],
+          "command_template": "ls -la /var/mobile/Containers/Data/Application/*/Library/Caches/Snapshots/",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-STORAGE/MASTG-TEST-0003/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MASVS-IOS-NETWORK",
+      "name": "iOS Network Communication & ATS (MASVS-NETWORK)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-IOS-NETW-01",
+          "name": "Testing App Transport Security (ATS) Configuration",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1437 - Application Layer Protocol"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1437"
+          ],
+          "cwe": [
+            "CWE-319"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Inspect Info.plist for NSAppTransportSecurity exceptions, specifically NSAllowsArbitraryLoads=true or insecure NSExceptionAllowsInsecureHTTPLoads on broad domains.",
+          "cases": [
+            "Inspect Info.plist for NSAppTransportSecurity settings",
+            "Verify whether NSAllowsArbitraryLoads is set to YES",
+            "Verify all network connections require TLS 1.3/1.2"
+          ],
+          "expected": "NSAppTransportSecurity is enforced without global NSAllowsArbitraryLoads bypasses.",
+          "recommendation": "Avoid NSAllowsArbitraryLoads. If specific third-party domains require HTTP, limit exceptions strictly to those specific domains.",
+          "tools": [
+            "plutil",
+            "jadx"
+          ],
+          "command_template": "plutil -p Info.plist | grep -A 10 NSAppTransportSecurity",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-NETWORK/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-IOS-NETW-02",
+          "name": "Testing SSL / TLS Certificate Pinning & Pinning Bypass",
+          "sev": "medium",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1600 - Weaken Encryption"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1600"
+          ],
+          "cwe": [
+            "CWE-295"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Verify if the app pins certificates or public keys (using TrustKit, URLSessionDelegate, or Alamofire) and test pinning bypass with Objection / Frida.",
+          "cases": [
+            "Intercept traffic via Burp Suite proxy",
+            "Verify if app drops connection when untrusted CA is presented",
+            "Run Objection 'ios sslpinning disable' to test hookability"
+          ],
+          "expected": "SSL Pinning is implemented using SecTrustEvaluateWithError or TrustKit.",
+          "recommendation": "Implement public key pinning with TrustKit or NSURLSessionDelegate and include backup pins.",
+          "tools": [
+            "burpsuite",
+            "objection",
+            "frida"
+          ],
+          "command_template": "objection -g {{BUNDLE_ID}} explore --startup-command \"ios sslpinning disable\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-NETWORK/MASTG-TEST-0002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MASVS-IOS-CODE",
+      "name": "iOS Binary Protections & Platform Security (MASVS-CODE)",
+      "scope": "project",
+      "items": [
+        {
+          "id": "MASTG-IOS-CODE-01",
+          "name": "Testing Binary Protections (PIE, ARC, Stack Canaries)",
+          "sev": "medium",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1624 - Event Triggered Execution"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1624"
+          ],
+          "cwe": [
+            "CWE-693"
+          ],
+          "cvss_score": "5.5 (Medium)",
+          "how": "Analyze the compiled iOS Mach-O binary to verify that compiler exploit mitigation flags are enabled: Position Independent Executable (PIE), Automatic Reference Counting (ARC), and Stack Canaries.",
+          "cases": [
+            "Check PIE flag: otool -hv {{BINARY_PATH}} | grep PIE",
+            "Check Stack Canary: otool -I -v {{BINARY_PATH}} | grep stack_chk_guard",
+            "Check ARC: otool -I -v {{BINARY_PATH}} | grep objc_release"
+          ],
+          "expected": "Binary compiled with -fPIE, -fstack-protector-all, and -fobjc-arc.",
+          "recommendation": "Enable all standard Xcode compiler protections in Build Settings: Generate Position-Dependent Code = NO, Enable Stack Protection = YES, Objective-C Automatic Reference Counting = YES.",
+          "tools": [
+            "otool",
+            "rabin2"
+          ],
+          "command_template": "otool -hv {{BINARY_PATH}} | grep PIE && otool -I -v {{BINARY_PATH}} | grep stack_chk_guard",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-CODE/MASTG-TEST-0001/"
+          ]
+        },
+        {
+          "id": "MASTG-IOS-CODE-02",
+          "name": "Testing Jailbreak Detection and Anti-Debugging",
+          "sev": "medium",
+          "mitre_tactic": "Defense Evasion",
+          "mitre_technique": [
+            "T1624 - Event Triggered Execution"
+          ],
+          "mitre": [
+            "Defense Evasion",
+            "T1624"
+          ],
+          "cwe": [
+            "CWE-693"
+          ],
+          "cvss_score": "5.5 (Medium)",
+          "how": "Verify if the app detects jailbroken devices (checking /Applications/Cydia.app, /bin/sh, sandbox integrity, ptrace PT_DENY_ATTACH) and test bypass mechanisms using Frida / Objection.",
+          "cases": [
+            "Run app on jailbroken iOS device and check behavior",
+            "Run Objection 'ios jailbreak disable' command to bypass detection"
+          ],
+          "expected": "App implements multi-layered jailbreak detection in native code and verifies device attestation.",
+          "recommendation": "Implement multi-layered jailbreak checks and DeviceCheck / App Attest API for hardware-backed attestation.",
+          "tools": [
+            "objection",
+            "frida"
+          ],
+          "command_template": "objection -g {{BUNDLE_ID}} explore --startup-command \"ios jailbreak disable\"",
+          "references": [
+            "https://mas.owasp.org/MASTG/tests/ios/MASVS-RESILIENCE/MASTG-TEST-0001/"
+          ]
+        }
+      ]
+    }
+  ]
+}

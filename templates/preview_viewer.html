@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}WebPT // Universal Test & Browser Preview Studio{% endblock %}
+{% block body %}
+<div id="topbar">
+  <div class="logo">WEBPT<span>://</span>PREVIEW<span>_STUDIO</span><span class="blink"></span></div>
+  <div class="tbar-status">
+    <a href="javascript:window.history.back()" class="btn-pill" style="text-decoration:none;margin-right:12px">← BACK</a>
+    <span class="dot"></span> READY
+  </div>
+</div>
+
+<div class="preview-studio-container">
+  <!-- SIDEBAR CONTROLS -->
+  <div class="studio-sidebar">
+    <div class="studio-hdr">// BROWSER PREVIEW CONTROLS</div>
+
+    <!-- TARGET & PORT CONFIG -->
+    <div class="field" style="margin-bottom:12px">
+      <label>TARGET HOST / DOMAIN</label>
+      <input type="text" id="previewHostInput" value="{{ host }}" placeholder="127.0.0.1 or target.com" oninput="updateFullPreviewUrl()">
+    </div>
+
+    <div class="field-row" style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="field" style="flex:1">
+        <label>PORT</label>
+        <input type="text" id="previewPortInput" value="{{ port }}" placeholder="80, 443, 8080..." oninput="updateFullPreviewUrl()">
+      </div>
+      <div class="field" style="flex:1">
+        <label>SCHEME</label>
+        <select id="previewSchemeSelect" onchange="updateFullPreviewUrl()">
+          <option value="http" {% if scheme == 'http' %}selected{% endif %}>HTTP</option>
+          <option value="https" {% if scheme == 'https' %}selected{% endif %}>HTTPS</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label>PATH / ENDPOINT</label>
+      <input type="text" id="previewPathInput" value="{{ path }}" placeholder="/login or /api/v1/..." oninput="updateFullPreviewUrl()">
+    </div>
+
+    <div class="field" style="margin-bottom:16px">
+      <label>FULL PREVIEW URL</label>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="fullPreviewUrlInput" value="{{ full_url }}" style="font-size:11px">
+        <button type="button" class="btn" style="padding:6px 12px;font-size:10px" onclick="loadPreviewUrl()">LOAD</button>
+      </div>
+    </div>
+
+    <!-- QUICK PRESET PORTS -->
+    <div class="hdr-audit-box" style="margin-bottom:16px">
+      <div class="audit-hdr">
+        <span>⚡ COMMON TEST PORTS</span>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+        <button type="button" class="btn-pill" onclick="setPortPreset('80', 'http')">80 (HTTP)</button>
+        <button type="button" class="btn-pill" onclick="setPortPreset('443', 'https')">443 (HTTPS)</button>
+        <button type="button" class="btn-pill" onclick="setPortPreset('8080', 'http')">8080 (Web)</button>
+        <button type="button" class="btn-pill" onclick="setPortPreset('8443', 'https')">8443 (SSL)</button>
+        <button type="button" class="btn-pill" onclick="setPortPreset('3000', 'http')">3000 (Node)</button>
+        <button type="button" class="btn-pill" onclick="setPortPreset('5000', 'http')">5000 (Flask)</button>
+        <button type="button" class="btn-pill" onclick="setPortPreset('8000', 'http')">8000 (Django)</button>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="poc-actions-box">
+      <div class="ctrl-hdr">🌐 EXTERNAL LAUNCH</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <button type="button" class="btn btn-secondary" onclick="openExternalTab()" style="font-size:10px">
+          🚀 OPEN IN NEW BROWSER TAB
+        </button>
+        <button type="button" class="btn" style="font-size:10px" onclick="copyFullUrl()">
+          📋 COPY PREVIEW URL
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CANVAS PANE -->
+  <div class="studio-canvas">
+    <div class="canvas-toolbar">
+      <div class="canvas-info">
+        <span class="canvas-title">PREVIEW: <span id="currentFrameUrl">{{ full_url }}</span></span>
+        <span id="frameStateBadge" class="frame-state-badge">Loading...</span>
+      </div>
+      <div class="canvas-viewport-btns">
+        <button type="button" class="btn-viewport active" onclick="setCanvasSize('100%', '100%', this)">Responsive (100%)</button>
+        <button type="button" class="btn-viewport" onclick="setCanvasSize('1280px', '800px', this)">Desktop (1280x800)</button>
+        <button type="button" class="btn-viewport" onclick="setCanvasSize('768px', '1024px', this)">Tablet (768x1024)</button>
+        <button type="button" class="btn-viewport" onclick="setCanvasSize('375px', '667px', this)">Mobile (375x667)</button>
+        <button type="button" class="btn-viewport" onclick="reloadPreviewFrame()">🔄 Reload Frame</button>
+      </div>
+    </div>
+
+    <div class="canvas-stage-wrapper">
+      <div id="canvasStage" class="canvas-stage" style="width:100%;height:calc(100vh - 120px)">
+        <iframe id="previewIframe" src="{{ full_url }}" class="target-iframe"
+                onload="onFrameLoaded()" onerror="onFrameBlocked()"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateFullPreviewUrl() {
+  const host = document.getElementById('previewHostInput').value.trim() || '127.0.0.1';
+  let port = document.getElementById('previewPortInput').value.trim();
+  const scheme = document.getElementById('previewSchemeSelect').value;
+  let path = document.getElementById('previewPathInput').value.trim();
+
+  if (!path.startsWith('/')) path = '/' + path;
+
+  let url = `${scheme}://${host}`;
+  if (port && !(scheme === 'http' && port === '80') && !(scheme === 'https' && port === '443')) {
+    url += `:${port}`;
+  }
+  url += path;
+
+  document.getElementById('fullPreviewUrlInput').value = url;
+}
+
+function setPortPreset(port, scheme) {
+  document.getElementById('previewPortInput').value = port;
+  document.getElementById('previewSchemeSelect').value = scheme;
+  updateFullPreviewUrl();
+  loadPreviewUrl();
+}
+
+function loadPreviewUrl() {
+  const url = document.getElementById('fullPreviewUrlInput').value.trim();
+  if (!url) return;
+  document.getElementById('currentFrameUrl').textContent = url;
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = 'Loading...';
+  badge.className = 'frame-state-badge';
+  document.getElementById('previewIframe').src = url;
+}
+
+function reloadPreviewFrame() {
+  const frame = document.getElementById('previewIframe');
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = 'Reloading...';
+  badge.className = 'frame-state-badge';
+  frame.src = frame.src;
+}
+
+function onFrameLoaded() {
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = '● LOADED';
+  badge.className = 'frame-state-badge loaded';
+}
+
+function onFrameBlocked() {
+  const badge = document.getElementById('frameStateBadge');
+  badge.textContent = '✕ BLOCKED / RESTRICTED';
+  badge.className = 'frame-state-badge blocked';
+}
+
+function setCanvasSize(w, h, btn) {
+  const stage = document.getElementById('canvasStage');
+  stage.style.width = w;
+  stage.style.height = (h === '100%') ? 'calc(100vh - 120px)' : h;
+  document.querySelectorAll('.btn-viewport').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function openExternalTab() {
+  const url = document.getElementById('fullPreviewUrlInput').value.trim();
+  if (url) window.open(url, '_blank');
+}
+
+function copyFullUrl() {
+  const url = document.getElementById('fullPreviewUrlInput').value.trim();
+  navigator.clipboard.writeText(url).then(() => {
+    alert('✓ Preview URL copied to clipboard: ' + url);
+  });
+}
+</script>
+{% endblock %}

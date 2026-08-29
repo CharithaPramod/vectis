@@ -1,0 +1,44 @@
+{
+  "id": "cloud-aws-custom",
+  "name": "AWS Cloud Security Review",
+  "description": "Custom AWS infrastructure testing checklist",
+  "category": "Cloud",
+  "icon": "\u2601\ufe0f",
+  "version": "1.0",
+  "is_builtin": false,
+  "phases": [
+    {
+      "id": "AWS-IAM",
+      "name": "IAM Security",
+      "scope": "project",
+      "items": [
+        {
+          "id": "AWS-IAM-01",
+          "name": "Check Root Account MFA and Access Keys",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1078 - Valid Accounts"
+          ],
+          "mitre": [],
+          "cwe": [
+            "CWE-287"
+          ],
+          "cvss_score": "9.0 (Critical)",
+          "how": "Verify that root user has MFA enabled and no active access keys generated.",
+          "cases": [
+            "Run aws iam get-account-summary and inspect AccountMFAEnabled"
+          ],
+          "expected": "AccountMFAEnabled is 1 and RootAccountAccessKeys is 0.",
+          "recommendation": "Delete all root access keys and enforce hardware security key MFA on root.",
+          "tools": [
+            "aws-cli",
+            "prowler"
+          ],
+          "command_template": "aws iam get-account-summary --profile {{PROFILE}}",
+          "references": []
+        }
+      ]
+    }
+  ]
+}

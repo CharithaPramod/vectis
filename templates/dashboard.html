@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+{% block title %}WebPT // Dashboard{% endblock %}
+{% block body %}
+<div id="topbar">
+  <div class="logo">WEBPT<span>://</span>TOOLKIT<span class="blink"></span></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button type="button" class="btn btn-sm btn-secondary" onclick="openApiVaultModal()" title="Configure global API Keys & Secrets Vault">🔑 API VAULT</button>
+    <div class="tbar-status"><span class="dot"></span> READY</div>
+  </div>
+</div>
+
+<div class="dash-wrap">
+  <div class="dash-hdr">// PENETRATION TEST DASHBOARD</div>
+  <div class="dash-sub">
+    Conduct structured penetration testing across Web Applications, Mobile (Android/iOS), APIs, and custom assessment frameworks with MITRE ATT&amp;CK, CWE, CVSS, and automated command parameter tooling.
+  </div>
+
+  <div class="dash-grid" style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:20px;margin-bottom:28px">
+    <!-- NEW ASSESSMENT FORM -->
+    <div class="modal-box" style="width:auto;padding:20px 22px;margin:0">
+      <div class="modal-title" style="margin-bottom:14px;font-size:12px;color:var(--green);letter-spacing:2px">
+        // NEW ASSESSMENT ENGAGEMENT
+      </div>
+      <form method="POST" action="{{ url_for('create_project') }}">
+        <div class="field">
+          <label>PROJECT / ENGAGEMENT NAME</label>
+          <input name="name" required placeholder="Acme Corp — Web & Mobile Assessment">
+        </div>
+
+        <div class="field-row" style="display:flex;gap:12px">
+          <div class="field" style="flex:2">
+            <label>TARGET (URL / Host / App Package / Bundle ID)</label>
+            <input name="target" placeholder="https://app.acme.com or com.acme.app">
+          </div>
+          <div class="field" style="flex:1">
+            <label>ENVIRONMENT</label>
+            <select name="env">
+              <option>Staging</option>
+              <option>Production</option>
+              <option>UAT</option>
+              <option>Dev</option>
+              <option>Local / Internal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row" style="display:flex;gap:12px">
+          <div class="field" style="flex:1">
+            <label>LEAD TESTER</label>
+            <input name="tester" placeholder="Lead Security Consultant">
+          </div>
+          <div class="field" style="flex:1">
+            <label>TECH STACK / SCOPE DETAILS</label>
+            <input name="tech_stack" placeholder="e.g. React, Spring Boot, Android SDK 34, iOS 17">
+          </div>
+        </div>
+
+        <!-- ASSESSMENT CHECKLIST SELECTOR -->
+        <div class="field" style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <label style="margin:0;color:var(--text)">SELECT ASSESSMENT CHECKLIST(S)</label>
+            <div class="quick-select-pills">
+              <button type="button" class="btn-pill" onclick="selectChecklists('all')">ALL</button>
+              <button type="button" class="btn-pill" onclick="selectChecklists('web')">WEB</button>
+              <button type="button" class="btn-pill" onclick="selectChecklists('mobile')">MOBILE</button>
+              <button type="button" class="btn-pill" onclick="selectChecklists('api')">API</button>
+            </div>
+          </div>
+
+          <div class="checklist-select-grid">
+            {% for ct in checklist_types %}
+            <label class="cl-card-select" data-category="{{ ct.category|lower }}">
+              <input type="checkbox" name="checklist_types" value="{{ ct.id }}"
+                     {% if ct.id == 'web-owasp-wstg' %}checked{% endif %}>
+              <div class="cl-select-body">
+                <div class="cl-select-title">
+                  <span>{{ ct.icon }} <b>{{ ct.name }}</b></span>
+                  <span class="cl-count-badge">{{ ct.checks.count() }} checks</span>
+                </div>
+                <div class="cl-select-desc">{{ ct.description|truncate(80) }}</div>
+                <div class="cl-select-meta">
+                  <span class="cl-cat-badge cat-{{ ct.category|lower }}">{{ ct.category }}</span>
+                  <span class="cl-ver">v{{ ct.version }}</span>
+                </div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <button class="btn" type="submit" style="margin-top:16px;width:100%">🚀 CREATE &amp; INITIALIZE ASSESSMENT</button>
+      </form>
+    </div>
+
+    <!-- CHECKLIST LIBRARY MANAGEMENT & TEMPLATE -->
+    <div class="modal-box" style="width:auto;padding:20px 22px;margin:0;display:flex;flex-direction:column">
+      <div class="modal-title" style="margin-bottom:14px;font-size:12px;color:var(--cyan);letter-spacing:2px;display:flex;justify-content:space-between;align-items:center">
+        <span>// ASSESSMENT LIBRARY</span>
+        <span style="font-size:10px;color:var(--dim)">{{ checklist_types|length }} Types Available</span>
+      </div>
+
+      <div style="font-size:11px;color:var(--dim);margin-bottom:16px;line-height:1.5">
+        Extend WebPT with custom penetration testing checklists (MITRE ATT&amp;CK, CWE, CVSS, default recommendations, and command scripts).
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <a href="{{ url_for('download_template') }}" class="btn btn-secondary" style="flex:1;text-align:center;text-decoration:none;font-size:10px;padding:8px 10px">
+          💾 DOWNLOAD TEMPLATE (JSON)
+        </a>
+        <button type="button" class="btn" style="flex:1;font-size:10px;padding:8px 10px" onclick="openImportModal()">
+          📥 IMPORT CHECKLIST (JSON)
+        </button>
+      </div>
+
+      <div class="lib-list" style="overflow-y:auto;max-height:360px;padding-right:4px">
+        {% for ct in checklist_types %}
+        <div class="lib-card">
+          <div class="lib-card-hdr">
+            <span class="lib-card-icon">{{ ct.icon }}</span>
+            <div class="lib-card-info">
+              <div class="lib-card-name">{{ ct.name }}</div>
+              <div class="lib-card-sub">{{ ct.checks.count() }} checks · {{ ct.category }} · v{{ ct.version }}</div>
+            </div>
+            <div class="lib-card-actions">
+              <a href="{{ url_for('export_checklist', type_id=ct.id) }}" class="btn-action" title="Export as JSON">📤 export</a>
+              {% if not ct.is_builtin %}
+              <form method="POST" action="{{ url_for('delete_checklist', type_id=ct.id) }}" style="display:inline"
+                    onsubmit="return confirm('Delete custom checklist \'{{ ct.name }}\'? This cannot be undone.')">
+                <button type="submit" class="btn-action delete" title="Delete custom checklist">🗑</button>
+              </form>
+              {% else %}
+              <span class="builtin-badge" title="Built-in core standard">BUILTIN</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVE PROJECTS LIST -->
+  <div class="dash-hdr" style="margin-top:20px">// ACTIVE ENGAGEMENTS ({{ projects|length }})</div>
+  <div class="proj-list">
+    {% for p in projects %}
+    <div class="proj-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <a href="{{ url_for('project_view', project_id=p.id) }}" style="font-size:13px;font-weight:bold">{{ p.name }}</a>
+        <div style="display:flex;gap:6px;align-items:center">
+          <a href="{{ url_for('report', project_id=p.id) }}" target="_blank" class="btn-pill" style="text-decoration:none">📄 REPORT</a>
+          <form method="POST" action="{{ url_for('delete_project', project_id=p.id) }}" onsubmit="return confirm('Delete project \'{{ p.name }}\'?')">
+            <button type="submit" class="btn-action delete" style="font-size:10px">🗑 DELETE</button>
+          </form>
+        </div>
+      </div>
+      <div class="meta" style="margin-top:6px">
+        <span>🎯 {{ p.target or '—' }}</span>
+        <span>👤 {{ p.tester or '—' }}</span>
+        <span>🔎 {{ p.env }}</span>
+        <span>🌐 {{ p.endpoints.count() }} endpoint(s)</span>
+        <span>🗓 {{ p.created_at.strftime('%Y-%m-%d') }}</span>
+      </div>
+      <div class="proj-checklists-row" style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+        {% for ct in p.checklist_types %}
+        <span class="tag-badge">{{ ct.icon }} {{ ct.name }}</span>
+        {% else %}
+        <span class="tag-badge">🌐 Web Application Testing</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div style="color:var(--dim);font-size:11px;padding:30px 0;text-align:center;border:1px dashed var(--border2);border-radius:4px">
+      No projects yet — configure and create your first assessment above.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- IMPORT CHECKLIST MODAL -->
+<div id="importModal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="width:520px;padding:24px;position:relative">
+    <div class="modal-title" style="margin-bottom:12px;color:var(--green)">// IMPORT CUSTOM JSON CHECKLIST</div>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:16px;line-height:1.5">
+      Upload a valid JSON file containing custom assessment checks. Supports MITRE ATT&amp;CK tactics, CWEs, CVSS scores, remediation recommendations, test cases, and parameterized commands.
+    </p>
+
+    <form method="POST" action="{{ url_for('import_checklist') }}" enctype="multipart/form-data">
+      <div class="field">
+        <label>SELECT JSON FILE</label>
+        <input type="file" name="checklist_file" accept=".json" required style="padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border)">
+      </div>
+
+      <div style="font-size:10px;color:var(--dim);margin:12px 0;padding:8px 10px;background:rgba(0,255,65,.03);border-left:2px solid var(--green)">
+        💡 Need a reference? <a href="{{ url_for('download_template') }}" style="color:var(--green);text-decoration:underline">Download the official JSON template</a> first.
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+        <button type="button" class="btn btn-secondary" onclick="closeImportModal()">CANCEL</button>
+        <button type="submit" class="btn">IMPORT &amp; SAVE</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- API KEYS & SECRETS VAULT MODAL -->
+<div id="apiVaultModal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="width:640px;max-height:85vh;overflow-y:auto;padding:22px">
+    <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:var(--cyan)">
+      <span>🔑 API KEYS &amp; SECRETS VAULT</span>
+      <button type="button" class="btn-action close" onclick="closeApiVaultModal()">✕</button>
+    </div>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.5">
+      Configured keys and tokens are automatically injected into running script environments (<span style="color:var(--cyan)">$SHODAN_API_KEY</span>, <span style="color:var(--cyan)">$TOKEN</span>, <span style="color:var(--cyan)">$AWS_ACCESS_KEY_ID</span>, etc.) and auto-substituted into tool command templates.
+    </p>
+
+    <form id="apiVaultForm" onsubmit="event.preventDefault(); saveApiVaultFromModal();">
+      <div class="vault-section-title">// OSINT &amp; RECONNAISSANCE</div>
+      <div class="vault-grid">
+        <div class="field">
+          <label>SHODAN_API_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_SHODAN_API_KEY" placeholder="Shodan API Key">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_SHODAN_API_KEY')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>SECURITYTRAILS_API_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_SECURITYTRAILS_API_KEY" placeholder="SecurityTrails API Key">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_SECURITYTRAILS_API_KEY')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>HUNTER_API_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_HUNTER_API_KEY" placeholder="Hunter.io API Key">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_HUNTER_API_KEY')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>VIRUSTOTAL_API_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_VIRUSTOTAL_API_KEY" placeholder="VirusTotal API Key">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_VIRUSTOTAL_API_KEY')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>CENSYS_API_ID</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_CENSYS_API_ID" placeholder="Censys API ID">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_CENSYS_API_ID')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>CENSYS_API_SECRET</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_CENSYS_API_SECRET" placeholder="Censys API Secret">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_CENSYS_API_SECRET')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>GITHUB_TOKEN</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_GITHUB_TOKEN" placeholder="GitHub Personal Access Token">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_GITHUB_TOKEN')">👁️</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="vault-section-title" style="margin-top:14px">// AUTHENTICATION &amp; ASSESSMENT TOKENS</div>
+      <div class="vault-grid">
+        <div class="field" style="grid-column:1/-1">
+          <label>BEARER / AUTH TOKEN ({{TOKEN}} / $BEARER_TOKEN)</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_TOKEN" placeholder="eyJhbGciOi... (JWT / Session Token / API Key)">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_TOKEN')">👁️</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="vault-section-title" style="margin-top:14px">// CLOUD &amp; INFRASTRUCTURE</div>
+      <div class="vault-grid">
+        <div class="field">
+          <label>AWS_ACCESS_KEY_ID</label>
+          <div class="vault-input-wrap">
+            <input type="text" id="vault_AWS_ACCESS_KEY_ID" placeholder="AKIA...">
+          </div>
+        </div>
+        <div class="field">
+          <label>AWS_SECRET_ACCESS_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_AWS_SECRET_ACCESS_KEY" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_AWS_SECRET_ACCESS_KEY')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>AWS_DEFAULT_REGION</label>
+          <input type="text" id="vault_AWS_DEFAULT_REGION" placeholder="us-east-1">
+        </div>
+      </div>
+
+      <div class="vault-section-title" style="margin-top:14px">// AI &amp; LLM ASSISTANTS</div>
+      <div class="vault-grid">
+        <div class="field">
+          <label>OPENAI_API_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_OPENAI_API_KEY" placeholder="sk-proj-...">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_OPENAI_API_KEY')">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>ANTHROPIC_API_KEY</label>
+          <div class="vault-input-wrap">
+            <input type="password" id="vault_ANTHROPIC_API_KEY" placeholder="sk-ant-...">
+            <button type="button" class="btn-toggle-mask" onclick="togglePasswordVisibility('vault_ANTHROPIC_API_KEY')">👁️</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="vault-section-title" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+        <span>// CUSTOM ENVIRONMENT VARIABLES / KEYS</span>
+        <button type="button" class="btn-micro" onclick="addCustomVaultRow()">+ Add Variable</button>
+      </div>
+      <div id="customVaultRows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;border-top:1px solid var(--border2);padding-top:14px">
+        <span id="vaultSaveNotice" style="font-size:10px;color:var(--green);display:none">✓ Vault saved successfully!</span>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button type="button" class="btn btn-secondary" onclick="closeApiVaultModal()">CLOSE</button>
+          <button type="submit" class="btn">💾 SAVE TO VAULT</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openImportModal() {
+  document.getElementById('importModal').style.display = 'flex';
+}
+function closeImportModal() {
+  document.getElementById('importModal').style.display = 'none';
+}
+function selectChecklists(type) {
+  const cards = document.querySelectorAll('.cl-card-select');
+  cards.forEach(card => {
+    const cb = card.querySelector('input[type="checkbox"]');
+    const cat = card.dataset.category || '';
+    if (type === 'all') {
+      cb.checked = true;
+    } else if (type === 'web') {
+      cb.checked = (cat === 'web' || card.querySelector('.cl-select-title').textContent.toLowerCase().includes('web'));
+    } else if (type === 'mobile') {
+      cb.checked = (cat === 'mobile' || card.querySelector('.cl-select-title').textContent.toLowerCase().includes('mobile') || card.querySelector('.cl-select-title').textContent.toLowerCase().includes('android') || card.querySelector('.cl-select-title').textContent.toLowerCase().includes('ios'));
+    } else if (type === 'api') {
+      cb.checked = (cat === 'api' || card.querySelector('.cl-select-title').textContent.toLowerCase().includes('api'));
+    }
+  });
+}
+</script>
+{% endblock %}

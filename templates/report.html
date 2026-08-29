@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pentest Report — {{ project.name }}</title>
+<style>
+body{font-family:'Courier New',monospace;background:#080d08;color:#00ff41;margin:0;padding:40px;max-width:1100px;margin:0 auto}
+h1{color:#00ff41;font-size:18px;letter-spacing:3px;border-bottom:1px solid rgba(0,255,65,.2);padding-bottom:10px;margin-bottom:18px}
+h2{color:#00cc33;font-size:12px;letter-spacing:2px;margin-top:28px;border-bottom:1px solid rgba(0,255,65,.1);padding-bottom:5px}
+h3{color:#00ffcc;font-size:12px;margin:12px 0 6px}
+.meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;font-size:11px;color:rgba(0,255,65,.55)}
+.checklists-meta{margin-bottom:16px;display:flex;gap:6px;flex-wrap:wrap}
+.cl-chip{font-size:9px;background:rgba(0,255,65,.05);border:1px solid rgba(0,255,65,.2);padding:2px 8px;border-radius:2px;color:rgba(200,240,200,.9)}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:10px}
+th{background:rgba(0,255,65,.06);padding:6px 9px;text-align:left;border:1px solid rgba(0,255,65,.12);color:#00ffcc;font-size:9px;letter-spacing:1px}
+td{padding:6px 9px;border:1px solid rgba(0,255,65,.09);color:rgba(200,240,200,.8);vertical-align:top}
+.pass{color:#44cc88}.fail{color:#ff4444}.na{color:rgba(0,255,65,.4)}.untested{color:rgba(0,255,65,.25)}
+.stat-row{display:flex;margin:10px 0 18px}
+.sc{flex:1;text-align:center;padding:10px 6px;background:rgba(0,255,65,.04);border:1px solid rgba(0,255,65,.08)}
+.sc .val{font-size:20px;font-weight:bold;line-height:1}
+.sc .lbl{font-size:9px;color:rgba(0,255,65,.45);letter-spacing:1px;margin-top:2px}
+.fbox{border-left:3px solid rgba(255,68,68,.5);background:rgba(255,68,68,.04);padding:14px 16px;margin-bottom:14px;border-radius:2px}
+.fbox.critical{border-left-color:#ff4444;background:rgba(255,68,68,.06)}
+.fbox.high{border-left-color:#ff8800;background:rgba(255,136,0,.04)}
+.fbox.medium{border-left-color:#ffcc00;background:rgba(255,200,0,.03)}
+.fbox.low{border-left-color:#00cc66;background:rgba(0,200,100,.03)}
+.fl{color:rgba(200,240,200,.75);font-size:11px;line-height:1.7;margin:4px 0}
+.notes-block{white-space:pre-wrap;color:rgba(200,240,200,.8);font-size:10px;background:rgba(0,0,0,.4);padding:10px;margin-top:6px;border:1px solid rgba(0,255,65,.1)}
+.recom-block{white-space:pre-wrap;color:rgba(200,255,200,.85);font-size:10px;background:rgba(0,255,65,.03);padding:10px;margin-top:6px;border:1px solid rgba(0,255,65,.15);border-left:3px solid #00ff41}
+.aff-block{background:rgba(0,0,0,.3);border:1px solid rgba(0,255,65,.1);padding:8px 10px;margin-top:6px}
+.aff-tag{display:inline-block;background:rgba(255,68,68,.12);border:1px solid rgba(255,68,68,.3);color:#ffaaaa;padding:2px 6px;margin:2px 4px 2px 0;font-size:9px}
+.aff-tag-custom{display:inline-block;background:rgba(0,255,204,.1);border:1px solid rgba(0,255,204,.3);color:#00ffcc;padding:2px 6px;margin:2px 4px 2px 0;font-size:9px}
+.sev-critical{color:#ff6666;font-weight:bold}
+.sev-high{color:#ff8844;font-weight:bold}
+.sev-medium{color:#ffcc44;font-weight:bold}
+.sev-low{color:#44cc88}
+</style>
+</head>
+<body>
+<h1>// PENETRATION TEST ASSESSMENT REPORT</h1>
+<div class="meta">
+  <span>📋 <b>{{ project.name }}</b></span>
+  <span>🎯 {{ project.target or '—' }}</span>
+  <span>👤 {{ project.tester or '—' }}</span>
+  <span>🔎 {{ project.env }}</span>
+  <span>🗓 Generated: {{ generated.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+</div>
+
+<div class="checklists-meta">
+  <span style="font-size:10px;color:rgba(0,255,65,.55)">ASSESSMENT SCOPE:</span>
+  {% for ct in project.checklist_types %}
+  <span class="cl-chip">{{ ct.icon }} {{ ct.name }}</span>
+  {% else %}
+  <span class="cl-chip">🌐 Web Application Testing (OWASP WSTG)</span>
+  {% endfor %}
+</div>
+
+{% if project.tech_stack %}<p style="font-size:11px;color:rgba(200,240,200,.55);margin-bottom:14px;padding:8px 12px;border:1px solid rgba(0,255,65,.08)">⚙ Tech Stack: {{ project.tech_stack }}</p>{% endif %}
+
+<h2>EXECUTIVE SUMMARY</h2>
+{% set tested_count = all_checks|selectattr('id')|list|length %}
+<div class="stat-row">
+  <div class="sc"><div class="val">{{ endpoints|length }}</div><div class="lbl">ENDPOINTS</div></div>
+  <div class="sc"><div class="val">{{ all_checks|length }}</div><div class="lbl">TOTAL CHECKS</div></div>
+  <div class="sc"><div class="val" style="color:#ff4444">{{ findings|length }}</div><div class="lbl">VULNERABILITIES FOUND</div></div>
+</div>
+
+<h2>SITEMAP VULNERABILITY BREAKDOWN</h2>
+{% if endpoints %}
+<table>
+  <tr>
+    <th>Method</th>
+    <th>Path</th>
+    <th>Host</th>
+    <th>Critical</th>
+    <th>High</th>
+    <th>Medium</th>
+    <th>Low</th>
+    <th>Total Findings</th>
+  </tr>
+  {% for ep in endpoints %}
+  {% set v = endpoint_vulns.get(ep.id, {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'info': 0, 'total': 0}) %}
+  <tr>
+    <td><b>{{ ep.method }}</b></td>
+    <td>{{ ep.path }}</td>
+    <td>{{ ep.host }}</td>
+    <td class="{{ 'sev-critical' if v.critical else '' }}">{{ v.critical }}</td>
+    <td class="{{ 'sev-high' if v.high else '' }}">{{ v.high }}</td>
+    <td class="{{ 'sev-medium' if v.medium else '' }}">{{ v.medium }}</td>
+    <td class="{{ 'sev-low' if v.low else '' }}">{{ v.low }}</td>
+    <td class="{{ 'fail' if v.total else 'pass' }}"><b>{{ v.total }}</b></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p style="font-size:10px;color:rgba(0,255,65,.4)">No endpoint sitemap loaded for this engagement.</p>
+{% endif %}
+
+<h2>SECURITY FINDINGS ({{ findings|length }} total)</h2>
+{% if findings %}
+{% for check, st, affected_eps, custom_eps in findings %}
+<div class="fbox {{ check.sev }}">
+  <h3>[{{ check.id }}] {{ check.name }} — {{ check.sev|upper }}</h3>
+  {% if check.checklist_type %}<div class="fl"><strong style="color:#00ffcc">Checklist Framework:</strong> {{ check.checklist_type.name }}</div>{% endif %}
+  {% if check.mitre_tactic %}<div class="fl"><strong style="color:#cc88ff">MITRE ATT&amp;CK Tactic:</strong> {{ check.mitre_tactic }}</div>{% endif %}
+  {% set cwe = check.cwe|from_json %}{% if cwe %}<div class="fl"><strong style="color:#00ffcc">CWE:</strong> {{ cwe|join(', ') }}</div>{% endif %}
+  {% set cvss_val = st.cvss if st.cvss else check.cvss_score %}
+  {% if cvss_val %}<div class="fl"><strong style="color:#ff8800">CVSS 3.1:</strong> {{ cvss_val }}</div>{% endif %}
+
+  <!-- Affected Endpoints List -->
+  {% if affected_eps or custom_eps %}
+  <div class="fl">
+    <strong style="color:#ff6666">Affected Endpoints &amp; Scope:</strong>
+    <div class="aff-block">
+      {% for ep in affected_eps %}
+      <span class="aff-tag">{{ ep.method }} {{ ep.path }} ({{ ep.host }})</span>
+      {% endfor %}
+      {% for c_url in custom_eps %}
+      <span class="aff-tag-custom">{{ c_url }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="fl"><strong style="color:#00ffcc">How to Conduct:</strong> {{ check.how }}</div>
+  <div class="fl"><strong style="color:#00ffcc">Expected Pass Condition:</strong> {{ check.expected }}</div>
+
+  {% if check.recommendation %}
+  <div class="fl"><strong style="color:#00ff41">Remediation Recommendation:</strong>
+    <div class="recom-block">{{ check.recommendation }}</div>
+  </div>
+  {% endif %}
+
+  {% if st.notes %}
+  <div class="fl"><strong style="color:#ff6666">Tester Evidence &amp; Findings:</strong>
+    <div class="notes-block">{{ st.notes }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<p style="font-size:11px;color:rgba(0,255,65,.5)">No vulnerabilities or failed checks recorded.</p>
+{% endif %}
+
+<p style="margin-top:32px;font-size:9px;color:rgba(0,255,65,.25)">WebPT Toolkit — Multi-Framework Pentest Assessment — Generated: {{ generated.isoformat() }}</p>
+</body>
+</html>
