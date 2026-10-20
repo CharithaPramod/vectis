@@ -21,7 +21,7 @@
       <div class="modal-title" style="margin-bottom:14px;font-size:12px;color:var(--green);letter-spacing:2px">
         // NEW ASSESSMENT ENGAGEMENT
       </div>
-      <form method="POST" action="{{ url_for('create_project') }}">
+      <form method="POST" action="{{ url_for('create_project') }}" enctype="multipart/form-data">
         <div class="field">
           <label>PROJECT / ENGAGEMENT NAME</label>
           <input name="name" required placeholder="Acme Corp — Web & Mobile Assessment">
@@ -29,7 +29,7 @@
 
         <div class="field-row" style="display:flex;gap:12px">
           <div class="field" style="flex:2">
-            <label>TARGET (URL / Host / App Package / Bundle ID)</label>
+            <label>PRIMARY TARGET (URL / Host / App Package / Bundle ID)</label>
             <input name="target" placeholder="https://app.acme.com or com.acme.app">
           </div>
           <div class="field" style="flex:1">
@@ -41,6 +41,36 @@
               <option>Dev</option>
               <option>Local / Internal</option>
             </select>
+          </div>
+        </div>
+
+        <!-- DOMAINS / IN-SCOPE TARGETS -->
+        <div class="field" style="padding:12px 14px;background:rgba(0,255,65,.025);border:1px solid var(--border2);border-radius:2px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="margin:0;color:var(--cyan);font-weight:bold;letter-spacing:1px">// TARGET SCOPE &amp; DOMAIN LIST (OPTIONAL)</label>
+            <span style="font-size:9px;color:var(--dim)">Comma-separated, line-by-line, or file upload</span>
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-bottom:8px;line-height:1.4">
+            Include multiple target domains to auto-populate the sitemap tree, automated scanner coverage, and security checklist scope.
+          </div>
+
+          <div class="field" style="margin-bottom:8px">
+            <label>DOMAINS / HOSTS (COMMA-SEPARATED OR ONE PER LINE)</label>
+            <textarea name="domain_list" rows="2" placeholder="e.g. app.acme.com, api.acme.com, auth.acme.com, https://admin.acme.com:8443"></textarea>
+          </div>
+
+          <div class="field-row" style="display:flex;gap:12px;align-items:flex-end">
+            <div class="field" style="flex:2;margin-bottom:0">
+              <label>OR UPLOAD DOMAIN LIST FILE (.TXT, .CSV)</label>
+              <input type="file" name="domain_file" accept=".txt,.csv" style="padding:5px 8px;background:rgba(0,0,0,.3);border:1px solid var(--border2);font-size:11px">
+            </div>
+            <div class="field" style="flex:1;margin-bottom:0">
+              <label>DEFAULT PROTOCOL</label>
+              <select name="default_proto">
+                <option value="https" selected>HTTPS (Default)</option>
+                <option value="http">HTTP</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -147,6 +177,8 @@
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <a href="{{ url_for('project_view', project_id=p.id) }}" style="font-size:13px;font-weight:bold">{{ p.name }}</a>
         <div style="display:flex;gap:6px;align-items:center">
+          <button type="button" class="btn-pill" onclick="openEditProjectModalFromDash({{ p.id }})">⚙️ EDIT</button>
+          <button type="button" class="btn-pill" onclick="openDashboardChecklistsModal({{ p.id }}, '{{ p.name|escape }}', {{ p.checklist_types|map(attribute='id')|list|tojson }})">📋 CHECKLISTS</button>
           <a href="{{ url_for('report', project_id=p.id) }}" target="_blank" class="btn-pill" style="text-decoration:none">📄 REPORT</a>
           <form method="POST" action="{{ url_for('delete_project', project_id=p.id) }}" onsubmit="return confirm('Delete project \'{{ p.name }}\'?')">
             <button type="submit" class="btn-action delete" style="font-size:10px">🗑 DELETE</button>
@@ -160,12 +192,13 @@
         <span>🌐 {{ p.endpoints.count() }} endpoint(s)</span>
         <span>🗓 {{ p.created_at.strftime('%Y-%m-%d') }}</span>
       </div>
-      <div class="proj-checklists-row" style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+      <div class="proj-checklists-row" style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;cursor:pointer" onclick="openDashboardChecklistsModal({{ p.id }}, '{{ p.name|escape }}', {{ p.checklist_types|map(attribute='id')|list|tojson }})" title="Click to alter assigned checklists">
         {% for ct in p.checklist_types %}
         <span class="tag-badge">{{ ct.icon }} {{ ct.name }}</span>
         {% else %}
         <span class="tag-badge">🌐 Web Application Testing</span>
         {% endfor %}
+        <span class="tag-badge" style="color:var(--cyan);border-color:rgba(0,255,204,.3)">✎ EDIT</span>
       </div>
     </div>
     {% else %}
@@ -329,6 +362,115 @@
           <button type="button" class="btn btn-secondary" onclick="closeApiVaultModal()">CLOSE</button>
           <button type="submit" class="btn">💾 SAVE TO VAULT</button>
         </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD MANAGE CHECKLISTS MODAL -->
+<div id="dashChecklistsModal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="width:720px;max-height:88vh;padding:22px;display:flex;flex-direction:column">
+    <div class="modal-title" style="margin-bottom:10px;color:var(--green);display:flex;justify-content:space-between;align-items:center">
+      <span>📋 // ASSIGNED CHECKLISTS — <span id="dashChecklistsModalProjectName" style="color:var(--cyan)"></span></span>
+      <button type="button" class="btn-action close" onclick="closeDashboardChecklistsModal()">✕</button>
+    </div>
+
+    <div style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.5">
+      Check or uncheck the security frameworks and checklists assigned to this project engagement.
+    </div>
+
+    <div style="font-size:10px;color:var(--cyan);margin-bottom:14px;padding:8px 12px;background:rgba(0,255,204,.04);border-left:2px solid var(--cyan);border-radius:2px">
+      🛡️ <b>Safe Scope Alteration:</b> Unchecking a checklist hides it from the assessment view, but <b>does not delete</b> any filled data. All your test notes, findings, affected endpoints, and evidence remain safely preserved in the database.
+    </div>
+
+    <form id="dashChecklistsForm" method="POST" action="" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <label style="margin:0;font-size:11px;color:var(--white)">SELECT ACTIVE FRAMEWORKS</label>
+        <div class="quick-select-pills">
+          <button type="button" class="btn-pill" onclick="selectDashboardChecklists('all')">ALL</button>
+          <button type="button" class="btn-pill" onclick="selectDashboardChecklists('web')">WEB</button>
+          <button type="button" class="btn-pill" onclick="selectDashboardChecklists('mobile')">MOBILE</button>
+          <button type="button" class="btn-pill" onclick="selectDashboardChecklists('api')">API</button>
+        </div>
+      </div>
+
+      <div class="checklist-select-grid" id="dashChecklistSelectGrid" style="flex:1;overflow-y:auto;max-height:420px;padding-right:4px">
+        {% for ct in checklist_types %}
+        <label class="cl-card-select" data-category="{{ ct.category|lower }}">
+          <input type="checkbox" name="checklist_types" value="{{ ct.id }}">
+          <div class="cl-select-body">
+            <div class="cl-select-title">
+              <span>{{ ct.icon }} <b>{{ ct.name }}</b></span>
+              <span class="cl-count-badge">{{ ct.checks.count() }} checks</span>
+            </div>
+            <div class="cl-select-desc">{{ ct.description|truncate(85) }}</div>
+            <div class="cl-select-meta">
+              <span class="cl-cat-badge cat-{{ ct.category|lower }}">{{ ct.category }}</span>
+              <span class="cl-ver">v{{ ct.version }}</span>
+            </div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;border-top:1px solid var(--border2);padding-top:12px">
+        <button type="button" class="btn btn-secondary" onclick="closeDashboardChecklistsModal()">CANCEL</button>
+        <button type="submit" class="btn">💾 SAVE &amp; APPLY CHECKLISTS</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD EDIT ENGAGEMENT DETAILS MODAL -->
+<div id="dashEditProjectModal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="width:620px;max-height:88vh;padding:22px;display:flex;flex-direction:column">
+    <div class="modal-title" style="margin-bottom:12px;color:var(--cyan);display:flex;justify-content:space-between;align-items:center">
+      <span>⚙️ // EDIT ENGAGEMENT DETAILS</span>
+      <button type="button" class="btn-action close" onclick="closeDashEditProjectModal()">✕</button>
+    </div>
+
+    <form id="dashEditProjectForm" method="POST" action="" style="display:flex;flex-direction:column;gap:10px">
+      <div class="field">
+        <label>PROJECT / ENGAGEMENT NAME</label>
+        <input id="dashEdit_name" name="name" required placeholder="Acme Corp — Web & Mobile Assessment">
+      </div>
+
+      <div class="field-row" style="display:flex;gap:12px">
+        <div class="field" style="flex:2">
+          <label>PRIMARY TARGET (URL / Host / App Package / Bundle ID)</label>
+          <input id="dashEdit_target" name="target" placeholder="https://app.acme.com or com.acme.app">
+        </div>
+        <div class="field" style="flex:1">
+          <label>ENVIRONMENT</label>
+          <select id="dashEdit_env" name="env">
+            <option value="Staging">Staging</option>
+            <option value="Production">Production</option>
+            <option value="UAT">UAT</option>
+            <option value="Dev">Dev</option>
+            <option value="Local / Internal">Local / Internal</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row" style="display:flex;gap:12px">
+        <div class="field" style="flex:1">
+          <label>LEAD TESTER</label>
+          <input id="dashEdit_tester" name="tester" placeholder="Lead Security Consultant">
+        </div>
+        <div class="field" style="flex:1">
+          <label>TECH STACK / SCOPE DETAILS</label>
+          <input id="dashEdit_tech_stack" name="tech_stack" placeholder="e.g. React, Spring Boot, Android SDK 34">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ENGAGEMENT NOTES &amp; SCOPE INSTRUCTIONS</label>
+        <textarea id="dashEdit_notes" name="notes" rows="4" placeholder="Out-of-scope paths, testing credentials, rules of engagement..."></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;border-top:1px solid var(--border2);padding-top:12px">
+        <button type="button" class="btn btn-secondary" onclick="closeDashEditProjectModal()">CANCEL</button>
+        <button type="submit" class="btn">💾 SAVE CHANGES</button>
       </div>
     </form>
   </div>

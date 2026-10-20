@@ -62,6 +62,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .sev-badge-sm.sev-low{background:rgba(0,200,100,.15);color:#44cc88;border:1px solid rgba(0,200,100,.3)}
 .sev-badge-sm.sev-clean{font-size:7px;color:rgba(0,255,65,.25);padding:1px 3px}
 
+/* Endpoint hover delete button */
+.btn-ep-delete{background:none;border:none;color:var(--dim);font-size:9px;cursor:pointer;padding:0 3px;line-height:1;opacity:0;transition:opacity .12s, color .12s}
+.ep-row:hover .btn-ep-delete{opacity:1}
+.btn-ep-delete:hover{color:var(--red)}
+
 .sb-footer{padding:10px 14px;border-top:1px solid var(--border2);display:flex;flex-direction:column;gap:6px}
 .btn{background:var(--glo);border:1px solid var(--border);color:var(--green);font-family:var(--mono);font-size:11px;padding:7px 12px;cursor:pointer;text-align:center;transition:all .12s;letter-spacing:.5px}
 .btn:hover{background:var(--ghi);border-color:var(--green3);box-shadow:0 0 8px rgba(0,255,65,.12)}

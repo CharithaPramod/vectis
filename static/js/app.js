@@ -1749,6 +1749,141 @@ function closePreviewModal() {
   if (overlay) overlay.style.display = 'none';
 }
 
+// ── Add Domains Modal ─────────────────────────────────────────────
+function openAddDomainsModal() {
+  const modal = document.getElementById('addDomainsModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeAddDomainsModal() {
+  const modal = document.getElementById('addDomainsModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ── Project Checklists Modal ──────────────────────────────────────
+function openChecklistsModal() {
+  const modal = document.getElementById('checklistsModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeChecklistsModal() {
+  const modal = document.getElementById('checklistsModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectProjectChecklists(type) {
+  const grid = document.getElementById('projectChecklistSelectGrid');
+  if (!grid) return;
+  const cards = grid.querySelectorAll('.cl-card-select');
+  cards.forEach(card => {
+    const cb = card.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    const cat = card.dataset.category || '';
+    const title = (card.querySelector('.cl-select-title')?.textContent || '').toLowerCase();
+    if (type === 'all') {
+      cb.checked = true;
+    } else if (type === 'web') {
+      cb.checked = (cat === 'web' || title.includes('web'));
+    } else if (type === 'mobile') {
+      cb.checked = (cat === 'mobile' || title.includes('mobile') || title.includes('android') || title.includes('ios'));
+    } else if (type === 'api') {
+      cb.checked = (cat === 'api' || title.includes('api'));
+    }
+  });
+}
+
+function openDashboardChecklistsModal(projectId, projectName, activeIds) {
+  const modal = document.getElementById('dashChecklistsModal');
+  const title = document.getElementById('dashChecklistsModalProjectName');
+  const form = document.getElementById('dashChecklistsForm');
+  if (!modal || !form) return;
+
+  if (title) title.textContent = projectName;
+  form.action = `/project/${projectId}/checklists`;
+
+  const activeSet = new Set(activeIds || []);
+  const checkboxes = form.querySelectorAll('input[type="checkbox"][name="checklist_types"]');
+  checkboxes.forEach(cb => {
+    cb.checked = activeSet.has(cb.value);
+  });
+
+  modal.style.display = 'flex';
+}
+
+function closeDashboardChecklistsModal() {
+  const modal = document.getElementById('dashChecklistsModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function selectDashboardChecklists(type) {
+  const form = document.getElementById('dashChecklistsForm');
+  if (!form) return;
+  const cards = form.querySelectorAll('.cl-card-select');
+  cards.forEach(card => {
+    const cb = card.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    const cat = card.dataset.category || '';
+    const title = (card.querySelector('.cl-select-title')?.textContent || '').toLowerCase();
+    if (type === 'all') {
+      cb.checked = true;
+    } else if (type === 'web') {
+      cb.checked = (cat === 'web' || title.includes('web'));
+    } else if (type === 'mobile') {
+      cb.checked = (cat === 'mobile' || title.includes('mobile') || title.includes('android') || title.includes('ios'));
+    } else if (type === 'api') {
+      cb.checked = (cat === 'api' || title.includes('api'));
+    }
+  });
+}
+
+// ── Edit Project Modal ────────────────────────────────────────────
+function openEditProjectModal() {
+  const modal = document.getElementById('editProjectModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeEditProjectModal() {
+  const modal = document.getElementById('editProjectModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function openEditProjectModalFromDash(projectId) {
+  const modal = document.getElementById('dashEditProjectModal');
+  const form = document.getElementById('dashEditProjectForm');
+  if (!modal || !form) return;
+
+  form.action = `/project/${projectId}/edit`;
+
+  try {
+    const res = await fetch(`/api/project/${projectId}`);
+    if (res.ok) {
+      const p = await res.json();
+      const nameInput = document.getElementById('dashEdit_name');
+      const targetInput = document.getElementById('dashEdit_target');
+      const envSelect = document.getElementById('dashEdit_env');
+      const testerInput = document.getElementById('dashEdit_tester');
+      const techInput = document.getElementById('dashEdit_tech_stack');
+      const notesInput = document.getElementById('dashEdit_notes');
+
+      if (nameInput) nameInput.value = p.name || '';
+      if (targetInput) targetInput.value = p.target || '';
+      if (envSelect) envSelect.value = p.env || 'Staging';
+      if (testerInput) testerInput.value = p.tester || '';
+      if (techInput) techInput.value = p.tech_stack || '';
+      if (notesInput) notesInput.value = p.notes || '';
+    }
+  } catch (e) {
+    console.error('Error fetching project details:', e);
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeDashEditProjectModal() {
+  const modal = document.getElementById('dashEditProjectModal');
+  if (modal) modal.style.display = 'none';
+}
+
 // ── Helper: flash visual feedback ────────────────────────────────
 function flashSaved(el) {
   el.classList.add('flash-saved');

@@ -21,6 +21,9 @@
               {% if v.low > 0 %}<span class="sev-badge-sm sev-low" title="Low: {{ v.low }}">{{ v.low }}L</span>{% endif %}
               {% if v.total == 0 %}<span class="sev-badge-sm sev-clean" title="No vulnerabilities attached">clean</span>{% endif %}
             </div>
+            <form method="POST" action="{{ url_for('delete_endpoint', project_id=project.id, endpoint_id=ep.id) }}" style="display:inline;margin-left:4px" onsubmit="event.stopPropagation(); return confirm('Remove endpoint {{ ep.method }} {{ ep.url }} from scope?')">
+              <button type="submit" class="btn-ep-delete" title="Delete endpoint" onclick="event.stopPropagation()">✕</button>
+            </form>
           </div>
         {% endfor %}
         {{ rendertree(child, host_key) }}
@@ -66,6 +69,9 @@
                   {% if v.low > 0 %}<span class="sev-badge-sm sev-low" title="Low: {{ v.low }}">{{ v.low }}L</span>{% endif %}
                   {% if v.total == 0 %}<span class="sev-badge-sm sev-clean" title="No vulnerabilities attached">clean</span>{% endif %}
                 </div>
+                <form method="POST" action="{{ url_for('delete_endpoint', project_id=project.id, endpoint_id=ep.id) }}" style="display:inline;margin-left:4px" onsubmit="event.stopPropagation(); return confirm('Remove endpoint {{ ep.method }} {{ ep.url }} from scope?')">
+                  <button type="submit" class="btn-ep-delete" title="Delete endpoint" onclick="event.stopPropagation()">✕</button>
+                </form>
               </div>
             {% endfor %}
             {{ rendertree(hostnode, host) }}
@@ -75,6 +81,7 @@
       {% endif %}
     </div>
     <div class="sb-footer">
+      <button type="button" class="btn btn-center" onclick="openAddDomainsModal()" style="display:block;width:100%;color:var(--cyan);border-color:rgba(0,255,204,.35)">🌐 ADD / IMPORT DOMAINS</button>
       <form method="POST" action="{{ url_for('import_burp', project_id=project.id) }}" enctype="multipart/form-data">
         <label class="btn btn-center" for="burpFile" style="display:block;cursor:pointer">📥 IMPORT BURP SITEMAP (XML)</label>
         <input id="burpFile" type="file" name="burp_file" accept=".xml" style="display:none" onchange="this.form.submit()">
@@ -91,18 +98,21 @@
   <div id="main">
     <!-- TOPBAR -->
     <div id="topbar">
-      <div class="logo">
+      <div class="logo" onclick="openEditProjectModal()" style="cursor:pointer" title="Click to edit project details">
         WEBPT<span>://</span>{{ project.name|upper }}<span class="blink"></span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="openEditProjectModal()" title="Edit Project Name, Target, Environment, Tester, Tech Stack, and Notes">⚙️ EDIT ENGAGEMENT</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="openChecklistsModal()" title="Modify assigned checklists for this project">📋 CHECKLISTS ({{ active_checklists|length }})</button>
         <button type="button" class="btn btn-sm btn-secondary" onclick="openApiVaultModal()" title="Manage API Keys, tokens & secrets">🔑 API VAULT</button>
         <button type="button" class="btn btn-sm btn-secondary" onclick="openArtifactsModal({{ project.id }})" title="View and download files in the assessment directory">📁 OUTPUT FILES</button>
-        <div class="topbar-checklists">
+        <div class="topbar-checklists" onclick="openChecklistsModal()" style="cursor:pointer" title="Click to alter assigned checklists">
           {% for ct in active_checklists %}
           <span class="tag-badge">{{ ct.icon }} {{ ct.name }}</span>
           {% endfor %}
+          <span class="tag-badge" style="color:var(--cyan);border-color:rgba(0,255,204,.3)">✎ EDIT</span>
         </div>
-        <div class="tbar-status"><span class="dot"></span> {{ project.env }}</div>
+        <div class="tbar-status" onclick="openEditProjectModal()" style="cursor:pointer" title="Click to edit environment or project details"><span class="dot"></span> {{ project.env }}</div>
       </div>
     </div>
 
@@ -580,6 +590,168 @@
         </div>
       </div>
       <div style="flex:1;overflow-y:auto;background:#030508;border:1px solid var(--border2);padding:10px;font-family:var(--mono);font-size:11px;color:var(--white);white-space:pre-wrap;word-break:break-all;max-height:540px" id="fileViewerContent"></div>
+    </div>
+  </div>
+
+  <!-- ADD DOMAINS & TARGET SCOPE MODAL -->
+  <div id="addDomainsModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:580px;padding:24px;position:relative">
+      <div class="modal-title" style="margin-bottom:12px;color:var(--cyan);display:flex;justify-content:space-between;align-items:center">
+        <span>🌐 // ADD TARGET DOMAINS &amp; SCOPE</span>
+        <button type="button" class="btn-action close" onclick="closeAddDomainsModal()">✕</button>
+      </div>
+      <p style="font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.5">
+        Add target domains, subdomains, or hosts to this project engagement. Enter domains comma-separated, one per line, or upload a domain list file (.txt, .csv).
+      </p>
+
+      <form method="POST" action="{{ url_for('add_project_domains', project_id=project.id) }}" enctype="multipart/form-data">
+        <div class="field">
+          <label>DOMAINS / HOSTS (COMMA-SEPARATED OR ONE PER LINE)</label>
+          <textarea name="domain_list" rows="4" placeholder="e.g. app.acme.com, api.acme.com, auth.acme.com&#10;or one per line&#10;https://portal.acme.com:8443"></textarea>
+        </div>
+
+        <div class="field-row" style="display:flex;gap:12px;align-items:flex-end">
+          <div class="field" style="flex:2;margin-bottom:0">
+            <label>OR UPLOAD DOMAIN LIST FILE (.TXT, .CSV)</label>
+            <input type="file" name="domain_file" accept=".txt,.csv" style="padding:6px 8px;background:rgba(0,0,0,.3);border:1px solid var(--border2);font-size:11px">
+          </div>
+          <div class="field" style="flex:1;margin-bottom:0">
+            <label>DEFAULT PROTOCOL</label>
+            <select name="default_proto">
+              <option value="https" selected>HTTPS (Default)</option>
+              <option value="http">HTTP</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="font-size:10px;color:var(--dim);margin:14px 0 16px;padding:8px 10px;background:rgba(0,255,204,.03);border-left:2px solid var(--cyan)">
+          💡 Added domains will be automatically parsed, categorized by heuristic flags (API, Auth, Admin), and populated into the sitemap tree for automated scanning and checklist testing.
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button type="button" class="btn btn-secondary" onclick="closeAddDomainsModal()">CANCEL</button>
+          <button type="submit" class="btn">🚀 ADD TO PROJECT SCOPE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MANAGE PROJECT CHECKLISTS MODAL -->
+  <div id="checklistsModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:720px;max-height:88vh;padding:22px;display:flex;flex-direction:column">
+      <div class="modal-title" style="margin-bottom:10px;color:var(--green);display:flex;justify-content:space-between;align-items:center">
+        <span>📋 // ASSIGNED ASSESSMENT CHECKLISTS</span>
+        <button type="button" class="btn-action close" onclick="closeChecklistsModal()">✕</button>
+      </div>
+
+      <div style="font-size:11px;color:var(--dim);margin-bottom:12px;line-height:1.5">
+        Check or uncheck the security frameworks and checklists assigned to this project engagement.
+      </div>
+
+      <div style="font-size:10px;color:var(--cyan);margin-bottom:14px;padding:8px 12px;background:rgba(0,255,204,.04);border-left:2px solid var(--cyan);border-radius:2px">
+        🛡️ <b>Safe Scope Alteration:</b> Unchecking a checklist hides it from the assessment view, but <b>does not delete</b> any filled data. All your test notes, findings, affected endpoints, and evidence remain safely preserved in the database and will instantly re-appear if the checklist is re-enabled.
+      </div>
+
+      <form method="POST" action="{{ url_for('update_project_checklists', project_id=project.id) }}" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <label style="margin:0;font-size:11px;color:var(--white)">SELECT ACTIVE FRAMEWORKS</label>
+          <div class="quick-select-pills">
+            <button type="button" class="btn-pill" onclick="selectProjectChecklists('all')">ALL</button>
+            <button type="button" class="btn-pill" onclick="selectProjectChecklists('web')">WEB</button>
+            <button type="button" class="btn-pill" onclick="selectProjectChecklists('mobile')">MOBILE</button>
+            <button type="button" class="btn-pill" onclick="selectProjectChecklists('api')">API</button>
+          </div>
+        </div>
+
+        <div class="checklist-select-grid" id="projectChecklistSelectGrid" style="flex:1;overflow-y:auto;max-height:420px;padding-right:4px">
+          {% set active_ids = active_checklists|map(attribute='id')|list %}
+          {% for ct in all_checklist_types %}
+          {% set is_active = ct.id in active_ids %}
+          {% set saved_count = checklist_saved_counts.get(ct.id, 0) if checklist_saved_counts else 0 %}
+          <label class="cl-card-select" data-category="{{ ct.category|lower }}">
+            <input type="checkbox" name="checklist_types" value="{{ ct.id }}" {% if is_active %}checked{% endif %}>
+            <div class="cl-select-body">
+              <div class="cl-select-title">
+                <span>{{ ct.icon }} <b>{{ ct.name }}</b></span>
+                <span class="cl-count-badge">{{ ct.checks.count() }} checks</span>
+              </div>
+              <div class="cl-select-desc">{{ ct.description|truncate(85) }}</div>
+              <div class="cl-select-meta" style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <span class="cl-cat-badge cat-{{ ct.category|lower }}">{{ ct.category }}</span>
+                  <span class="cl-ver">v{{ ct.version }}</span>
+                </div>
+                {% if saved_count > 0 %}
+                <span class="tag-badge" style="color:var(--yellow);border-color:rgba(255,204,0,.4);font-size:9px" title="Findings/notes are saved for this checklist">
+                  📝 {{ saved_count }} saved check(s)
+                </span>
+                {% endif %}
+              </div>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;border-top:1px solid var(--border2);padding-top:12px">
+          <button type="button" class="btn btn-secondary" onclick="closeChecklistsModal()">CANCEL</button>
+          <button type="submit" class="btn">💾 SAVE &amp; APPLY CHECKLISTS</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT ENGAGEMENT DETAILS MODAL -->
+  <div id="editProjectModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="width:620px;max-height:88vh;padding:22px;display:flex;flex-direction:column">
+      <div class="modal-title" style="margin-bottom:12px;color:var(--cyan);display:flex;justify-content:space-between;align-items:center">
+        <span>⚙️ // EDIT ASSESSMENT ENGAGEMENT DETAILS</span>
+        <button type="button" class="btn-action close" onclick="closeEditProjectModal()">✕</button>
+      </div>
+
+      <form method="POST" action="{{ url_for('edit_project', project_id=project.id) }}" style="display:flex;flex-direction:column;gap:10px">
+        <div class="field">
+          <label>PROJECT / ENGAGEMENT NAME</label>
+          <input name="name" required value="{{ project.name }}" placeholder="Acme Corp — Web & Mobile Assessment">
+        </div>
+
+        <div class="field-row" style="display:flex;gap:12px">
+          <div class="field" style="flex:2">
+            <label>PRIMARY TARGET (URL / Host / App Package / Bundle ID)</label>
+            <input name="target" value="{{ project.target }}" placeholder="https://app.acme.com or com.acme.app">
+          </div>
+          <div class="field" style="flex:1">
+            <label>ENVIRONMENT</label>
+            <select name="env">
+              <option value="Staging" {% if project.env == 'Staging' %}selected{% endif %}>Staging</option>
+              <option value="Production" {% if project.env == 'Production' %}selected{% endif %}>Production</option>
+              <option value="UAT" {% if project.env == 'UAT' %}selected{% endif %}>UAT</option>
+              <option value="Dev" {% if project.env == 'Dev' %}selected{% endif %}>Dev</option>
+              <option value="Local / Internal" {% if project.env == 'Local / Internal' %}selected{% endif %}>Local / Internal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row" style="display:flex;gap:12px">
+          <div class="field" style="flex:1">
+            <label>LEAD TESTER</label>
+            <input name="tester" value="{{ project.tester }}" placeholder="Lead Security Consultant">
+          </div>
+          <div class="field" style="flex:1">
+            <label>TECH STACK / SCOPE DETAILS</label>
+            <input name="tech_stack" value="{{ project.tech_stack }}" placeholder="e.g. React, Spring Boot, Android SDK 34">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>ENGAGEMENT NOTES &amp; SCOPE INSTRUCTIONS</label>
+          <textarea name="notes" rows="4" placeholder="Out-of-scope paths, testing credentials, rules of engagement, rate limit warnings...">{{ project.notes }}</textarea>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;border-top:1px solid var(--border2);padding-top:12px">
+          <button type="button" class="btn btn-secondary" onclick="closeEditProjectModal()">CANCEL</button>
+          <button type="submit" class="btn">💾 SAVE CHANGES</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

@@ -1,0 +1,1661 @@
+{
+  "id": "external-blackbox-domain-only",
+  "name": "Total External Blackbox Assessment - Domain Only",
+  "description": "Fully unauthenticated, domain-in attacker-perspective assessment. Covers passive OSINT, DNS/email security, subdomain and attack-surface mapping, TLS, active scanning, cloud storage/source leak discovery, dark web intelligence, AI/LLM agent exposure (MITRE ATLAS), unauthenticated web testing, network perimeter, and social-engineering surface. No authentication, no AD assumptions - pure external attacker view.",
+  "category": "External / Blackbox",
+  "icon": "\ud83c\udf10",
+  "version": "1.0",
+  "is_builtin": false,
+  "phases": [
+    {
+      "id": "EXT-PHASE-01",
+      "name": "Passive Reconnaissance & OSINT",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-REC-01",
+          "name": "WHOIS & Domain Registration Intelligence",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1596.002 - Search Open Technical Databases: WHOIS"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1596"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Enumerate registrar, registrant org, creation/expiry dates, name servers, and privacy-proxy usage to build organizational and infrastructure context.",
+          "cases": [
+            "Run whois against root domain and all discovered subdomains' parent zones",
+            "Check domain expiry date for hijack-via-non-renewal risk",
+            "Identify registrar lock status (clientTransferProhibited)",
+            "Cross-reference registrant org name against known shell/holding companies"
+          ],
+          "expected": "Domain has registrar lock enabled, valid expiry >90 days out, and privacy protection enabled on registrant PII.",
+          "recommendation": "Enable registry/registrar lock, enable WHOIS privacy, set auto-renewal, and monitor expiry via uptime/monitoring tooling.",
+          "tools": [
+            "whois",
+            "whoisxmlapi-cli"
+          ],
+          "command_template": "whois {{DOMAIN}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1596/002/"
+          ]
+        },
+        {
+          "id": "EXT-REC-02",
+          "name": "Search Engine & Public Document OSINT",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1593.002 - Search Open Websites/Domains: Search Engines"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1593"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "N/A (Informational)",
+          "how": "Use Google/Bing dorking and metadata harvesting to find exposed documents, internal paths, and indexed sensitive files belonging to the organization.",
+          "cases": [
+            "Dork: site:{{DOMAIN}} filetype:pdf OR filetype:xlsx OR filetype:docx",
+            "Dork: site:{{DOMAIN}} intitle:index.of",
+            "Extract metadata (author, software version, internal usernames) from harvested documents",
+            "Search cached/archived pages via Wayback Machine for removed-but-indexed content"
+          ],
+          "expected": "No internal documents, credentials, or directory listings are publicly indexed.",
+          "recommendation": "Remove sensitive indexed documents, disable directory listing, add robots.txt/noindex where appropriate, strip metadata before publishing files.",
+          "tools": [
+            "googler",
+            "site-dorker",
+            "metagoofil",
+            "waybackurls"
+          ],
+          "command_template": "metagoofil -d {{DOMAIN}} -t pdf,docx,xlsx -l 100 -n 50 -o metagoofil_out -f metagoofil_report.html",
+          "references": [
+            "https://attack.mitre.org/techniques/T1593/002/"
+          ]
+        },
+        {
+          "id": "EXT-REC-03",
+          "name": "Employee & Email Format Enumeration",
+          "sev": "low",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1589.002 - Gather Victim Identity Information: Email Addresses"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1589"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "N/A (Low)",
+          "how": "Harvest employee names, roles, and email address patterns from professional networks, company pages, and public breach aggregators to build a phishing/credential-stuffing target list.",
+          "cases": [
+            "Harvest emails/names via theHarvester across all public sources",
+            "Determine email naming convention (first.last@, flast@, etc.)",
+            "Identify technical/IT/security staff for targeted social engineering",
+            "Cross-check harvested emails against public breach-exposure databases (read-only enumeration)"
+          ],
+          "expected": "Email convention and staff listing findings are documented purely for risk awareness; no exploitation performed without separate written authorization for social engineering.",
+          "recommendation": "Train staff on OSINT exposure, limit public org-chart detail, enforce MFA to blunt value of harvested email addresses.",
+          "tools": [
+            "theHarvester",
+            "hunter.io-cli",
+            "linkedin2username"
+          ],
+          "command_template": "theHarvester -d {{DOMAIN}} -b all -f theharvester_{{DOMAIN}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1589/002/"
+          ]
+        },
+        {
+          "id": "EXT-REC-04",
+          "name": "Passive Technology Stack Fingerprinting",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1592.002 - Gather Victim Host Information: Software"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1592"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Use third-party aggregator APIs (not direct probing) to identify technology stack, hosting provider, and historical infrastructure changes without touching target systems.",
+          "cases": [
+            "Query BuiltWith/Wappalyzer API for current and historical tech stack",
+            "Identify hosting provider / CDN from passive DNS history",
+            "Flag end-of-life or known-vulnerable software versions for later active validation"
+          ],
+          "expected": "No critically outdated or EOL software components identified in passive footprint.",
+          "recommendation": "Maintain an internal asset/version inventory and patch cadence so externally-visible stack never trails more than one minor version behind vendor support.",
+          "tools": [
+            "builtwith-cli",
+            "wappalyzer-cli",
+            "webanalyze"
+          ],
+          "command_template": "webanalyze -host https://{{DOMAIN}} -output json",
+          "references": [
+            "https://attack.mitre.org/techniques/T1592/002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-02",
+      "name": "DNS & Email Security Assessment",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-DNS-01",
+          "name": "DNS Zone Transfer & Record Enumeration",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.002 - Gather Victim Network Information: DNS"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "5.3 (Medium)",
+          "how": "Attempt zone transfers against all authoritative name servers and enumerate full record set (A/AAAA/MX/TXT/NS/SOA/SRV/CNAME).",
+          "cases": [
+            "dig axfr against each NS record for the domain",
+            "Enumerate all record types via dig/dnsrecon",
+            "Check for internal hostnames or IP ranges leaked in TXT/SPF records",
+            "Identify stale or orphaned DNS entries pointing to decommissioned infrastructure"
+          ],
+          "expected": "Zone transfer is refused (REFUSED/timeout) on all name servers; no internal network data leaked via DNS records.",
+          "recommendation": "Restrict AXFR to authorized secondary name servers only, audit and remove stale DNS records quarterly.",
+          "tools": [
+            "dig",
+            "dnsrecon",
+            "dnsenum",
+            "fierce"
+          ],
+          "command_template": "dnsrecon -d {{DOMAIN}} -t axfr,std,srv,brt",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/002/"
+          ]
+        },
+        {
+          "id": "EXT-DNS-02",
+          "name": "SPF / DKIM / DMARC Email Spoofing Assessment",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.002 - Gather Victim Network Information: DNS"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [
+            "CWE-290"
+          ],
+          "cvss_score": "7.5 (High) if missing/misconfigured, enables T1566 Phishing downstream",
+          "how": "Validate presence and strictness of SPF, DKIM, and DMARC records to assess domain spoofing / phishing-impersonation risk.",
+          "cases": [
+            "Resolve TXT record for SPF and verify -all (hard fail) vs ~all (soft fail) vs missing",
+            "Verify DKIM selector records exist and are RSA 2048-bit minimum",
+            "Resolve _dmarc TXT record and verify policy is p=reject or p=quarantine (not p=none)",
+            "Test actual spoofed-email delivery against a controlled mailbox (with written authorization) to confirm enforcement"
+          ],
+          "expected": "SPF ends in -all, DKIM is configured with 2048-bit keys, DMARC policy is quarantine or reject with rua/ruf reporting configured.",
+          "recommendation": "Set SPF -all, enforce DMARC p=reject after a monitoring period at p=none/quarantine, rotate DKIM keys annually.",
+          "tools": [
+            "dig",
+            "mxtoolbox-cli",
+            "checkdmarc",
+            "spoofcheck"
+          ],
+          "command_template": "checkdmarc {{DOMAIN}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/002/",
+            "https://attack.mitre.org/techniques/T1566/"
+          ]
+        },
+        {
+          "id": "EXT-DNS-03",
+          "name": "DNSSEC Validation & Chain of Trust Check",
+          "sev": "low",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.002 - Gather Victim Network Information: DNS"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [
+            "CWE-345"
+          ],
+          "cvss_score": "3.1 (Low)",
+          "how": "Verify DNSSEC is enabled and validates correctly end-to-end to mitigate DNS cache-poisoning/spoofing risk.",
+          "cases": [
+            "Query DNSKEY and RRSIG records for the domain",
+            "Validate chain of trust from root to leaf using delv or dig +dnssec",
+            "Check parent zone DS record matches child zone DNSKEY"
+          ],
+          "expected": "DNSSEC is fully enabled and validates without SERVFAIL across the chain.",
+          "recommendation": "Enable DNSSEC at the registrar and authoritative DNS provider, monitor for signature expiry.",
+          "tools": [
+            "dig",
+            "delv",
+            "dnsviz"
+          ],
+          "command_template": "delv {{DOMAIN}} @8.8.8.8 +rtrace",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/002/"
+          ]
+        },
+        {
+          "id": "EXT-DNS-04",
+          "name": "Subdomain Takeover via Dangling DNS Records",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-16"
+          ],
+          "cvss_score": "9.1 (Critical)",
+          "how": "Identify CNAMEs pointing to deprovisioned third-party services (S3, Azure, GitHub Pages, Heroku, etc.) that an attacker could claim and serve malicious content from the victim's own subdomain.",
+          "cases": [
+            "Enumerate all CNAME records across discovered subdomains",
+            "Match CNAME targets against known vulnerable-service fingerprints (NXDOMAIN, 'bucket does not exist', etc.)",
+            "Attempt safe, non-destructive proof-of-concept claim on a sandbox/throwaway account where policy allows",
+            "Verify finding manually before reporting to avoid false positives"
+          ],
+          "expected": "No CNAME records point to unclaimed/deprovisioned third-party resources.",
+          "recommendation": "Remove DNS records immediately when decommissioning third-party services; run automated subdomain-takeover scanning in CI/CD on every DNS change.",
+          "tools": [
+            "subjack",
+            "can-i-take-over-xyz",
+            "nuclei (takeovers templates)"
+          ],
+          "command_template": "subjack -w subs.txt -t 50 -timeout 30 -ssl -c fingerprints.json -v",
+          "references": [
+            "https://github.com/EdOverflow/can-i-take-over-xyz"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-03",
+      "name": "Subdomain Enumeration & Attack Surface Mapping",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-SUB-01",
+          "name": "Passive Subdomain Enumeration",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.002 - Gather Victim Network Information: DNS",
+            "T1596.003 - Search Open Technical Databases: Digital Certificates"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Aggregate subdomains from certificate transparency logs, passive DNS databases, and public datasets without touching the target directly.",
+          "cases": [
+            "Query crt.sh for all certs issued under {{DOMAIN}}",
+            "Run subfinder/amass in passive-only mode across all configured sources",
+            "Deduplicate and normalize the combined subdomain list"
+          ],
+          "expected": "Full passive subdomain inventory produced and matched against the organization's known asset register.",
+          "recommendation": "Maintain an authoritative asset inventory and alert on newly-observed certificates/subdomains not present in it.",
+          "tools": [
+            "subfinder",
+            "amass",
+            "assetfinder",
+            "crt.sh API"
+          ],
+          "command_template": "subfinder -d {{DOMAIN}} -all -silent -o subs_passive.txt && amass enum -passive -d {{DOMAIN}} -o amass_passive.txt",
+          "references": [
+            "https://attack.mitre.org/techniques/T1596/003/"
+          ]
+        },
+        {
+          "id": "EXT-SUB-02",
+          "name": "Active Subdomain Brute-Force & Permutation Scanning",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.002 - Active Scanning: Vulnerability Scanning"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1595"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Resolve a large permutation/brute-force wordlist against the domain's authoritative name servers to surface subdomains missing from passive sources.",
+          "cases": [
+            "Run DNS brute force using a large curated wordlist (jhaddix all.txt or similar)",
+            "Generate permutations of known subdomains (dev-, staging-, old-, v2-) and resolve them",
+            "Rate-limit resolution to avoid DNS provider throttling/alerting"
+          ],
+          "expected": "Active enumeration confirms the passive list and surfaces any environment (dev/staging/uat) subdomains missing from inventory.",
+          "recommendation": "Apply identical security controls to non-production subdomains as production, or remove public DNS entries for internal-only environments.",
+          "tools": [
+            "puredns",
+            "massdns",
+            "dnsx",
+            "gotator"
+          ],
+          "command_template": "puredns bruteforce wordlist.txt {{DOMAIN}} -r resolvers.txt -w subs_active.txt",
+          "references": [
+            "https://attack.mitre.org/techniques/T1595/002/"
+          ]
+        },
+        {
+          "id": "EXT-SUB-03",
+          "name": "Live Host & HTTP Service Triage",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.001 - Active Scanning: Scanning IP Blocks"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1595"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Resolve the combined subdomain list to IPs, probe for live HTTP(S) services, and capture titles/status codes/tech stack for triage prioritization.",
+          "cases": [
+            "Resolve all subdomains to IPs with dnsx",
+            "Probe HTTP/HTTPS on standard and common alternate ports (80,443,8080,8443,8000,8888)",
+            "Capture page title, status code, content-length, and tech fingerprint per live host",
+            "Flag hosts returning 401/403 (potential hidden admin panels) for manual follow-up"
+          ],
+          "expected": "Comprehensive live-host inventory with triage metadata produced for all phases downstream.",
+          "recommendation": "Decommission or firewall unused/forgotten live hosts identified during triage.",
+          "tools": [
+            "httpx",
+            "dnsx",
+            "naabu"
+          ],
+          "command_template": "cat subs_all.txt | httpx -silent -title -status-code -tech-detect -follow-redirects -o live_hosts.txt",
+          "references": [
+            "https://attack.mitre.org/techniques/T1595/001/"
+          ]
+        },
+        {
+          "id": "EXT-SUB-04",
+          "name": "Virtual Host / SNI Enumeration on Shared IPs",
+          "sev": "low",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.005 - Gather Victim Network Information: IP Addresses"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "N/A (Low)",
+          "how": "On IPs hosting multiple sites (shared hosting/load balancers), enumerate virtual hosts via SNI/Host-header fuzzing to reveal non-DNS-registered applications sharing the same IP.",
+          "cases": [
+            "Fuzz Host header against discovered IPs using a vhost wordlist",
+            "Enumerate SNI certificate names bound to each shared IP",
+            "Cross-reference revealed vhosts against the known asset inventory"
+          ],
+          "expected": "No undocumented virtual hosts are discoverable on shared infrastructure IPs.",
+          "recommendation": "Use dedicated IPs or strict default-deny vhost configuration so unregistered Host headers return a generic error, not a different application.",
+          "tools": [
+            "ffuf (vhost mode)",
+            "gobuster vhost",
+            "VHostScan"
+          ],
+          "command_template": "ffuf -u https://{{IP}} -H \"Host: FUZZ.{{DOMAIN}}\" -w vhosts.txt -fs {{BASELINE_SIZE}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/005/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-04",
+      "name": "Certificate & TLS/SSL Assessment",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "EXT-TLS-01",
+          "name": "Certificate Transparency Log Harvesting",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1596.003 - Search Open Technical Databases: Digital Certificates"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1596"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Mine CT logs for every certificate issued to the domain to surface internal hostnames, pre-launch environments, and wildcard scope.",
+          "cases": [
+            "Query crt.sh/censys CT log APIs for full certificate history",
+            "Identify internal-only hostnames unintentionally leaked via SAN entries",
+            "Flag wildcard certificates (*.{{DOMAIN}}) and assess their exposure blast radius"
+          ],
+          "expected": "No internal-only hostnames are exposed via public CT logs.",
+          "recommendation": "Use internal/private CAs for non-public-facing hosts, avoid including internal hostnames in public-cert SANs.",
+          "tools": [
+            "crt.sh API",
+            "censys-cli",
+            "ctfr"
+          ],
+          "command_template": "curl -s \"https://crt.sh/?q=%25.{{DOMAIN}}&output=json\" | jq -r '.[].name_value' | sort -u",
+          "references": [
+            "https://attack.mitre.org/techniques/T1596/003/"
+          ]
+        },
+        {
+          "id": "EXT-TLS-02",
+          "name": "TLS Protocol & Cipher Suite Weakness Assessment",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.002 - Active Scanning: Vulnerability Scanning"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1595"
+          ],
+          "cwe": [
+            "CWE-327",
+            "CWE-326"
+          ],
+          "cvss_score": "6.5 (Medium, higher if TLS 1.0/1.1 or export ciphers present)",
+          "how": "Assess supported TLS versions, cipher suites, and key exchange strength for downgrade and MITM susceptibility.",
+          "cases": [
+            "Scan for TLS 1.0/1.1 support (should be disabled)",
+            "Check for weak ciphers: RC4, 3DES, export-grade, NULL ciphers",
+            "Test for Heartbleed, POODLE, BEAST, CRIME, ROBOT vulnerabilities",
+            "Verify forward secrecy (ECDHE) is enforced"
+          ],
+          "expected": "Only TLS 1.2/1.3 enabled, strong AEAD ciphers only, forward secrecy enforced, no legacy vulnerabilities present.",
+          "recommendation": "Disable TLS 1.0/1.1, remove weak/export ciphers, enforce ECDHE-based cipher suites, apply latest patches to TLS stack.",
+          "tools": [
+            "testssl.sh",
+            "sslyze",
+            "nmap --script ssl-enum-ciphers"
+          ],
+          "command_template": "testssl.sh --severity MEDIUM -U https://{{HOST}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1595/002/"
+          ]
+        },
+        {
+          "id": "EXT-TLS-03",
+          "name": "Certificate Validity, Wildcard Exposure & Mismanagement",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1596.003 - Search Open Technical Databases: Digital Certificates"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1596"
+          ],
+          "cwe": [
+            "CWE-295"
+          ],
+          "cvss_score": "5.3 (Medium)",
+          "how": "Validate certificate chain correctness, expiry windows, and whether wildcard certs are over-scoped relative to actual usage.",
+          "cases": [
+            "Verify full chain validates to a trusted root with no intermediate gaps",
+            "Confirm expiry is >30 days out across all live hosts",
+            "Assess blast radius if a wildcard cert's private key were compromised",
+            "Check for self-signed certs on any production-facing endpoint"
+          ],
+          "expected": "All certs valid, properly chained, >30 days from expiry, and scoped as tightly as operationally feasible.",
+          "recommendation": "Automate certificate renewal (ACME/Let's Encrypt or enterprise CA automation), prefer SAN-specific certs over broad wildcards for high-value hosts.",
+          "tools": [
+            "openssl",
+            "testssl.sh"
+          ],
+          "command_template": "echo | openssl s_client -connect {{HOST}}:443 -servername {{HOST}} 2>/dev/null | openssl x509 -noout -dates -subject -issuer",
+          "references": [
+            "https://attack.mitre.org/techniques/T1596/003/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-05",
+      "name": "Active Scanning - Port & Service Enumeration",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "EXT-SCAN-01",
+          "name": "Full TCP/UDP Port Sweep",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.001 - Active Scanning: Scanning IP Blocks"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1595"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Perform a full 65535-port TCP sweep (plus top-1000 UDP) against all live IPs to establish the complete exposed-port baseline.",
+          "cases": [
+            "Fast full-port TCP discovery scan to identify open ports",
+            "Follow with targeted -sV -sC on discovered open ports",
+            "Run top-1000 UDP scan (full UDP sweeps are slow/unreliable at scale)"
+          ],
+          "expected": "Open port set matches the documented/expected service inventory exactly - no unexpected ports open.",
+          "recommendation": "Apply default-deny firewall rules; only explicitly required ports should ever be reachable from the internet.",
+          "tools": [
+            "masscan",
+            "rustscan",
+            "nmap"
+          ],
+          "command_template": "masscan -p1-65535 {{IP}} --rate 2000 -oL masscan_out.txt && nmap -sV -sC -p$(cat masscan_out.txt | awk '{print $3}' | tr '\\n' ',') {{IP}} -oA nmap_full",
+          "references": [
+            "https://attack.mitre.org/techniques/T1595/001/"
+          ]
+        },
+        {
+          "id": "EXT-SCAN-02",
+          "name": "Service Version & Banner Enumeration",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1592.002 - Gather Victim Host Information: Software"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1592"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "N/A (Informational)",
+          "how": "Grab service banners and version strings on every open port to feed CVE correlation and identify unnecessary information disclosure.",
+          "cases": [
+            "Run nmap -sV against all open ports for version detection",
+            "Manually grab banners on non-standard ports via netcat for services nmap misidentifies",
+            "Flag services disclosing internal version/build numbers in banners"
+          ],
+          "expected": "Minimal/generic banners; internal build details not disclosed externally.",
+          "recommendation": "Suppress or genericize service banners (server_tokens off in nginx, ServerTokens Prod in Apache, etc.).",
+          "tools": [
+            "nmap",
+            "netcat",
+            "amap"
+          ],
+          "command_template": "nmap -sV --version-intensity 9 -p {{PORTS}} {{IP}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1592/002/"
+          ]
+        },
+        {
+          "id": "EXT-SCAN-03",
+          "name": "Exposed Management & Remote Access Interfaces",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1133 - External Remote Services"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1133"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "cvss_score": "9.8 (Critical) if unauthenticated/default-creds admin interface",
+          "how": "Specifically hunt for internet-exposed admin/management surfaces (SSH, RDP, WinRM, Redis, Elasticsearch, Jenkins, phpMyAdmin, Kubernetes API, Docker API, VNC) that should sit behind VPN.",
+          "cases": [
+            "Check for exposed RDP (3389), SSH (22 with password auth), WinRM (5985/5986)",
+            "Check for unauthenticated Redis (6379), Elasticsearch (9200), MongoDB (27017), Kubernetes API (6443/8443)",
+            "Identify exposed CI/CD consoles (Jenkins 8080, GitLab Runner) reachable without VPN",
+            "Attempt safe banner/version check only - do NOT attempt exploitation on critical infra without explicit scoping sign-off"
+          ],
+          "expected": "No administrative/management interface is reachable from the open internet; all require VPN or IP-allowlist access.",
+          "recommendation": "Move all management interfaces behind VPN/bastion with MFA, enforce IP allowlisting at the firewall, disable password auth on SSH in favor of key-based auth.",
+          "tools": [
+            "nmap",
+            "nuclei (exposed-panels templates)",
+            "shodan-cli"
+          ],
+          "command_template": "nuclei -u {{HOST}} -t exposed-panels/ -t network/ -severity critical,high",
+          "references": [
+            "https://attack.mitre.org/techniques/T1133/"
+          ]
+        },
+        {
+          "id": "EXT-SCAN-04",
+          "name": "Known CVE Correlation via Automated Templates",
+          "sev": "critical",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.002 - Active Scanning: Vulnerability Scanning"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1595"
+          ],
+          "cwe": [
+            "CWE-1035"
+          ],
+          "cvss_score": "Varies per matched CVE (report actual CVSS of each finding)",
+          "how": "Correlate fingerprinted service/software versions against current CVE databases using signature-based vulnerability scanning templates.",
+          "cases": [
+            "Run nuclei CVE template set against all live hosts",
+            "Cross-reference nmap NSE vuln scripts output against NVD/Vulners",
+            "Prioritize validation of any CVE with a public PoC/known-exploited-vulnerabilities (CISA KEV) listing"
+          ],
+          "expected": "No unpatched CVE-matched vulnerabilities present, especially none on the CISA KEV list.",
+          "recommendation": "Establish a patch SLA tied to CVSS/KEV status (e.g., KEV items patched within 72 hours), automate CVE scanning in CI.",
+          "tools": [
+            "nuclei",
+            "nmap --script vuln",
+            "vulners-cli"
+          ],
+          "command_template": "nuclei -l live_hosts.txt -t cves/ -t vulnerabilities/ -severity critical,high,medium -o nuclei_cve_results.txt",
+          "references": [
+            "https://attack.mitre.org/techniques/T1595/002/",
+            "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-06",
+      "name": "Web Technology Fingerprinting & Perimeter Hardening",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "EXT-TECH-01",
+          "name": "CMS / Framework / Server Identification",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1592.002 - Gather Victim Host Information: Software"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1592"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Fingerprint CMS platforms, backend frameworks, and web servers to target version-specific vulnerability research.",
+          "cases": [
+            "Run whatweb/wappalyzer against each live host",
+            "Check for CMS-specific files (wp-login.php, /administrator, sitecore, etc.)",
+            "Identify backend framework via error pages, header leakage (X-Powered-By), and response fingerprints"
+          ],
+          "expected": "Identified stack versions are current/supported; no End-of-Life CMS or framework in use.",
+          "recommendation": "Keep CMS/plugins/frameworks on vendor-supported versions, suppress version-disclosing headers (X-Powered-By, Server).",
+          "tools": [
+            "whatweb",
+            "wappalyzer-cli",
+            "httpx -tech-detect"
+          ],
+          "command_template": "whatweb -a 3 https://{{HOST}} --log-json=whatweb_{{HOST}}.json",
+          "references": [
+            "https://attack.mitre.org/techniques/T1592/002/"
+          ]
+        },
+        {
+          "id": "EXT-TECH-02",
+          "name": "WAF / CDN Detection & Bypass Feasibility",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.004 - Gather Victim Network Information: Network Topology"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [],
+          "cvss_score": "5.0 (Medium) if bypass is feasible",
+          "how": "Determine whether a WAF/CDN sits in front of the origin, and assess whether the real origin IP can be discovered to bypass WAF protection entirely.",
+          "cases": [
+            "Fingerprint WAF vendor via response headers/behavior (wafw00f)",
+            "Attempt origin-IP discovery via historical DNS (SecurityTrails/passive DNS), SSL cert SAN matching, and subdomain misconfig (e.g. direct-connect subdomains bypassing CDN)",
+            "If origin found, verify whether origin firewall accepts direct traffic (bypassing WAF protections entirely)"
+          ],
+          "expected": "True origin IP is not discoverable, or if discovered, origin firewall only accepts traffic from the CDN/WAF IP ranges.",
+          "recommendation": "Lock origin server firewall to only accept connections from CDN/WAF provider IP ranges, rotate origin IP if previously exposed, avoid exposing origin IP via subdomains or mail/DNS records.",
+          "tools": [
+            "wafw00f",
+            "CloudFail",
+            "censys-cli"
+          ],
+          "command_template": "wafw00f https://{{HOST}} -v",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/004/"
+          ]
+        },
+        {
+          "id": "EXT-TECH-03",
+          "name": "Client-Side JavaScript Library & Dependency Exposure",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1592.002 - Gather Victim Host Information: Software"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1592"
+          ],
+          "cwe": [
+            "CWE-1104"
+          ],
+          "cvss_score": "6.1 (Medium, depends on matched library CVEs)",
+          "how": "Enumerate client-side JS libraries and their versions to identify known-vulnerable dependencies (e.g. outdated jQuery, Angular, Lodash with public XSS/prototype-pollution CVEs).",
+          "cases": [
+            "Crawl rendered pages and extract all loaded JS library versions",
+            "Match versions against Retire.js/Snyk vulnerability database",
+            "Review source maps (.map files) for accidental source code exposure"
+          ],
+          "expected": "No client-side library in use has a known critical/high CVE; source maps are not exposed in production.",
+          "recommendation": "Keep front-end dependencies patched via automated dependency scanning in CI, strip source maps from production builds.",
+          "tools": [
+            "retire.js",
+            "Wappalyzer",
+            "nuclei (exposures/)"
+          ],
+          "command_template": "retire --js --url https://{{HOST}} --outputformat json",
+          "references": [
+            "https://attack.mitre.org/techniques/T1592/002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-07",
+      "name": "Cloud Storage & Exposed Asset Discovery",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-CLOUD-01",
+          "name": "Public S3 / Azure Blob / GCS Bucket Discovery",
+          "sev": "critical",
+          "mitre_tactic": "Collection",
+          "mitre_technique": [
+            "T1530 - Data from Cloud Storage"
+          ],
+          "mitre": [
+            "Collection",
+            "T1530"
+          ],
+          "cwe": [
+            "CWE-284"
+          ],
+          "cvss_score": "9.1 (Critical) if world-readable/writable with sensitive data",
+          "how": "Enumerate cloud storage buckets related to the organization's brand/domain naming conventions and test for public read/write/list permissions.",
+          "cases": [
+            "Permute bucket names from domain/brand/product names (company, company-backup, company-dev, etc.)",
+            "Check each candidate bucket for public List, Read, and Write ACL permissions",
+            "If public, sample (do not exfiltrate bulk data) file listing to assess sensitivity of exposed content",
+            "Repeat across AWS S3, Azure Blob Storage, and GCS naming conventions"
+          ],
+          "expected": "No cloud storage buckets are publicly listable, readable, or writable; access requires authenticated/signed requests only.",
+          "recommendation": "Enable S3 Block Public Access account-wide, apply least-privilege bucket policies, enable access logging and alerting on ACL changes.",
+          "tools": [
+            "cloud_enum",
+            "S3Scanner",
+            "GCPBucketBrute",
+            "grayhatwarfare"
+          ],
+          "command_template": "cloud_enum -k {{COMPANY_KEYWORD}} --disable-azure --disable-gcp -l cloud_enum_results.txt",
+          "references": [
+            "https://attack.mitre.org/techniques/T1530/"
+          ]
+        },
+        {
+          "id": "EXT-CLOUD-02",
+          "name": "Serverless / API Gateway Endpoint Exposure",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1595.002 - Active Scanning: Vulnerability Scanning"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1595"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Identify exposed serverless functions (Lambda URLs, Azure Functions, Cloud Functions) and API Gateway stages that may bypass intended auth layers.",
+          "cases": [
+            "Discover *.execute-api.*.amazonaws.com, *.azurewebsites.net, *.cloudfunctions.net endpoints linked to the domain",
+            "Test discovered endpoints for missing authentication/authorization on invocation",
+            "Check for verbose error messages leaking stack traces, internal IPs, or environment variables"
+          ],
+          "expected": "All serverless/API gateway endpoints require authentication; no verbose errors leak internal infrastructure detail.",
+          "recommendation": "Require API keys/IAM auth on all gateway stages, disable verbose stack traces in production, enable WAF on API Gateway.",
+          "tools": [
+            "nuclei",
+            "httpx",
+            "Arjun (parameter discovery)"
+          ],
+          "command_template": "nuclei -u {{HOST}} -t exposures/apis/ -t misconfiguration/",
+          "references": [
+            "https://attack.mitre.org/techniques/T1595/002/"
+          ]
+        },
+        {
+          "id": "EXT-CLOUD-03",
+          "name": "Exposed CI/CD Pipelines & Artifact Repositories",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1195.002 - Supply Chain Compromise: Compromise Software Supply Chain"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1195"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "8.1 (High)",
+          "how": "Identify internet-reachable CI/CD dashboards, container registries, and artifact repositories that could allow supply-chain compromise if accessed.",
+          "cases": [
+            "Discover exposed Jenkins, GitLab CI, TeamCity, or CircleCI dashboards",
+            "Check for unauthenticated Docker registry (v2/_catalog endpoint) exposure",
+            "Check for exposed Nexus/Artifactory/npm private registries without auth"
+          ],
+          "expected": "No CI/CD dashboard or artifact registry is reachable without authentication from the internet.",
+          "recommendation": "Place all CI/CD and registry infrastructure behind VPN/SSO, enforce authentication on all registry API endpoints.",
+          "tools": [
+            "nuclei (exposed-panels/)",
+            "httpx",
+            "docker-registry-cli"
+          ],
+          "command_template": "nuclei -u {{HOST}} -t exposed-panels/jenkins/ -t exposed-panels/gitlab/ -t exposed-panels/docker-registry/",
+          "references": [
+            "https://attack.mitre.org/techniques/T1195/002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-08",
+      "name": "Source Code & Credential Leak Discovery",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-LEAK-01",
+          "name": "GitHub / GitLab Dork & Secret Scanning",
+          "sev": "critical",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1552.001 - Unsecured Credentials: Credentials In Files"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-798",
+            "CWE-312"
+          ],
+          "cvss_score": "9.8 (Critical) if active/live credentials found",
+          "how": "Search public code repositories and commit history for hardcoded credentials, API keys, and internal configuration belonging to the organization.",
+          "cases": [
+            "Dork GitHub/GitLab for the domain, brand name, and known internal project names",
+            "Scan matched repos/commit history with TruffleHog/Gitleaks for secret patterns (AWS keys, private keys, JWT secrets, DB connection strings)",
+            "Check for forked/deleted-but-cached repos that still expose historical secrets",
+            "Validate (read-only, non-destructive) whether any discovered key is still active before reporting severity"
+          ],
+          "expected": "No live organizational secrets are present in public repositories or commit history.",
+          "recommendation": "Rotate any discovered credential immediately, add pre-commit secret-scanning hooks, run gitleaks/trufflehog in CI on every push, purge secrets from git history with BFG/filter-repo.",
+          "tools": [
+            "trufflehog",
+            "gitleaks",
+            "github-dorker",
+            "gitrob"
+          ],
+          "command_template": "trufflehog github --org={{ORG_NAME}} --only-verified --json",
+          "references": [
+            "https://attack.mitre.org/techniques/T1552/001/"
+          ]
+        },
+        {
+          "id": "EXT-LEAK-02",
+          "name": "Paste-Site & Public Code-Sharing Credential Monitoring",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1552.001 - Unsecured Credentials: Credentials In Files"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "7.5 (High)",
+          "how": "Search Pastebin-style sites and public code-sharing platforms for accidental dumps of config files, credentials, or internal data referencing the domain.",
+          "cases": [
+            "Query Pastebin/Ghostbin/Gist search for domain and brand-related keywords",
+            "Search PSBDMP (Pastebin dump search engine) historical archive",
+            "Flag any config/credential dump and trace back to likely leak source (developer laptop, misconfigured CI log, etc.)"
+          ],
+          "expected": "No current organizational secrets or internal configuration are found on public paste platforms.",
+          "recommendation": "Subscribe to a continuous paste-site monitoring feed (e.g., via breach-intel vendor) tied to brand/domain keywords for ongoing detection.",
+          "tools": [
+            "psbdmp-cli",
+            "Pastebin Google dorks",
+            "IntelX API"
+          ],
+          "command_template": "curl -s \"https://psbdmp.ws/api/v3/search/{{DOMAIN}}\"",
+          "references": [
+            "https://attack.mitre.org/techniques/T1552/001/"
+          ]
+        },
+        {
+          "id": "EXT-LEAK-03",
+          "name": "Exposed .git / .env / Backup File Discovery",
+          "sev": "critical",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1552.001 - Unsecured Credentials: Credentials In Files"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1552"
+          ],
+          "cwe": [
+            "CWE-538"
+          ],
+          "cvss_score": "9.1 (Critical) if .env or .git contains live credentials",
+          "how": "Probe each live host for accidentally-deployed version-control directories, environment files, and backup archives directly reachable over HTTP.",
+          "cases": [
+            "Request /.git/HEAD and /.git/config on all live hosts; if 200 OK, attempt (non-destructive) dump via git-dumper for evidence",
+            "Request /.env, /.env.bak, /config.php.bak, /wp-config.php.bak and similar common backup patterns",
+            "Fuzz for common backup archive names (backup.zip, site.tar.gz, db_dump.sql)"
+          ],
+          "expected": "No version control metadata, environment files, or backup archives are reachable over HTTP on any live host.",
+          "recommendation": "Exclude dotfiles and backup extensions at the web server/reverse-proxy level, never deploy .git directories to production webroots, store secrets in a vault service rather than .env files on web-accessible paths.",
+          "tools": [
+            "git-dumper",
+            "ffuf",
+            "nuclei (exposures/)"
+          ],
+          "command_template": "ffuf -u https://{{HOST}}/FUZZ -w common-backup-files.txt -mc 200 -fs {{BASELINE_SIZE}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1552/001/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-09",
+      "name": "Dark Web & Breach Intelligence",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-DARK-01",
+          "name": "Dark Web Marketplace & Forum Mention Monitoring",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1597.002 - Search Closed Sources: Purchase Technical Data"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1597"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Intelligence Finding) - severity scales with data sold/offered",
+          "how": "Search dark web marketplaces, hacking forums, and Telegram channels for mentions of the organization, its domain, or employees being sold, discussed, or targeted. Note: open-source dark web tooling has materially weaker coverage than commercial threat-intel platforms - see gap analysis.",
+          "cases": [
+            "Search known onion-indexed forums/marketplaces for domain/brand mentions via Tor-routed queries",
+            "Monitor Telegram channels known for initial-access-broker (IAB) listings for the organization's name/sector",
+            "Document any listing offering access, credentials, or data purportedly from the organization (do not purchase/interact with sellers)"
+          ],
+          "expected": "No active listings offering unauthorized access to, or data from, the organization.",
+          "recommendation": "If a credible listing is found, escalate immediately to incident response outside the pentest scope; consider a paid dark-web monitoring subscription for continuous coverage (see gap analysis).",
+          "tools": [
+            "OnionScan",
+            "Ahmia (onion search engine)",
+            "torsocks + curl",
+            "TorBot"
+          ],
+          "command_template": "torsocks curl -s \"http://ahmia.fi/search/?q={{DOMAIN}}\"",
+          "references": [
+            "https://attack.mitre.org/techniques/T1597/002/"
+          ]
+        },
+        {
+          "id": "EXT-DARK-02",
+          "name": "Credential Breach Database Correlation",
+          "sev": "high",
+          "mitre_tactic": "Credential Access",
+          "mitre_technique": [
+            "T1589.001 - Gather Victim Identity Information: Credentials"
+          ],
+          "mitre": [
+            "Credential Access",
+            "T1589"
+          ],
+          "cwe": [
+            "CWE-522"
+          ],
+          "cvss_score": "7.5 (High) scaled by number of live/reused credentials found",
+          "how": "Check harvested organizational email addresses against known breach-compilation databases to assess password-reuse and credential-stuffing risk.",
+          "cases": [
+            "Query Have I Been Pwned (domain search, if domain verified) for breach exposure count",
+            "Cross-check harvested employee emails against Dehashed/Intelligence X for plaintext/hash exposure",
+            "Assess whether exposed passwords follow a pattern suggesting reuse across corporate accounts (do not attempt login with found credentials without explicit authorization)"
+          ],
+          "expected": "Exposure found is historical/third-party only; no evidence of current corporate credential reuse.",
+          "recommendation": "Enforce MFA everywhere to blunt reuse risk, run continuous breach-monitoring on corporate domain, enforce password-manager usage and periodic forced resets after confirmed exposure.",
+          "tools": [
+            "haveibeenpwned-cli",
+            "h8mail",
+            "Dehashed API"
+          ],
+          "command_template": "h8mail -t {{EMAIL}} -o h8mail_results.csv",
+          "references": [
+            "https://attack.mitre.org/techniques/T1589/001/"
+          ]
+        },
+        {
+          "id": "EXT-DARK-03",
+          "name": "Ransomware Leak-Site Exposure Check",
+          "sev": "critical",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1597.002 - Search Closed Sources: Purchase Technical Data"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1597"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Intelligence Finding) - treat any hit as critical/incident-level",
+          "how": "Check known ransomware-group leak sites and aggregator trackers for any listing referencing the organization, indicating prior or ongoing compromise.",
+          "cases": [
+            "Search ransomware leak-site aggregator trackers (e.g. ransomwatch, ransomlook) for domain/brand mentions",
+            "If a listing exists, document URL/date/group without downloading any leaked data",
+            "Correlate listing date against known organizational incidents if any"
+          ],
+          "expected": "No listing referencing the organization exists on any tracked ransomware leak site.",
+          "recommendation": "Any positive hit must be escalated immediately to incident response leadership - this is outside normal pentest finding remediation and requires IR activation.",
+          "tools": [
+            "ransomwatch",
+            "ransomlook.io API"
+          ],
+          "command_template": "curl -s \"https://www.ransomlook.io/api/search/{{DOMAIN}}\"",
+          "references": [
+            "https://attack.mitre.org/techniques/T1597/002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-10",
+      "name": "AI / LLM Agent Exposure Scanning (MITRE ATLAS)",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "EXT-AI-01",
+          "name": "Exposed LLM API Endpoint Discovery",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance (ATLAS)",
+          "mitre_technique": [
+            "AML.T0000 - Search for Victim's Publicly Available Research Materials (ATLAS analogue)"
+          ],
+          "mitre": [
+            "Reconnaissance-ATLAS",
+            "AML.TA0002"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "cvss_score": "8.6 (High) if unauthenticated inference endpoint found",
+          "how": "ATT&CK has no native technique for this - use MITRE ATLAS (AI-specific adversarial framework) as the reference model. Identify internet-reachable AI chat/inference endpoints tied to the organization and test for missing authentication/rate limiting.",
+          "cases": [
+            "Discover endpoints matching /v1/chat/completions, /v1/completions, /api/chat, /predict patterns via nuclei/httpx",
+            "Probe for Ollama (port 11434), Text-Generation-Inference, vLLM, or LocalAI default endpoints exposed externally",
+            "Test whether inference endpoints require API-key authentication or are fully open",
+            "Check for exposed model-serving dashboards (e.g. Triton Inference Server, BentoML) without auth"
+          ],
+          "expected": "No LLM/inference endpoint is reachable without authentication; rate limiting is enforced to prevent resource-exhaustion abuse.",
+          "recommendation": "Require API-key/OAuth auth on all inference endpoints, place model-serving infra behind the same perimeter controls as any other internal API, enforce per-key rate limits.",
+          "tools": [
+            "nuclei (custom AI-exposure templates)",
+            "httpx",
+            "shodan (product:\"Ollama\")"
+          ],
+          "command_template": "nuclei -u {{HOST}} -t exposures/ -tags llm,ai,exposed-panel",
+          "references": [
+            "https://atlas.mitre.org/"
+          ]
+        },
+        {
+          "id": "EXT-AI-02",
+          "name": "Vector Database & Embedding Store Exposure",
+          "sev": "high",
+          "mitre_tactic": "Collection (ATLAS)",
+          "mitre_technique": [
+            "AML.T0024 - Exfiltration via ML Inference API (ATLAS analogue)"
+          ],
+          "mitre": [
+            "Collection-ATLAS",
+            "AML.TA0010"
+          ],
+          "cwe": [
+            "CWE-284"
+          ],
+          "cvss_score": "8.2 (High) if embeddings containing sensitive source data are extractable",
+          "how": "Vector databases backing RAG/AI-agent features can leak the underlying proprietary documents via embedding similarity queries if left unauthenticated. Identify and test exposure of Pinecone/Weaviate/Milvus/Qdrant/Chroma instances.",
+          "cases": [
+            "Scan for default ports of common vector DBs (Weaviate 8080, Milvus 19530, Qdrant 6333, Chroma 8000) reachable externally",
+            "Test for unauthenticated query/list-collections access on discovered instances",
+            "If accessible, assess (without bulk-extracting) whether raw source text is retrievable from embeddings, not just vector values"
+          ],
+          "expected": "No vector database instance is reachable or queryable without authentication from the internet.",
+          "recommendation": "Never expose vector DB ports directly to the internet; require API-key/mTLS auth and place behind the application's own auth layer, not the DB's default (often none).",
+          "tools": [
+            "nmap",
+            "shodan (port:19530 OR port:6333 OR port:8080 product filters)",
+            "custom curl probes"
+          ],
+          "command_template": "nmap -p 6333,8080,19530,8000 --open {{IP}}",
+          "references": [
+            "https://atlas.mitre.org/"
+          ]
+        },
+        {
+          "id": "EXT-AI-03",
+          "name": "Prompt Injection & Jailbreak Susceptibility of Public-Facing AI Features",
+          "sev": "medium",
+          "mitre_tactic": "Initial Access (ATLAS)",
+          "mitre_technique": [
+            "AML.T0051 - LLM Prompt Injection (ATLAS)"
+          ],
+          "mitre": [
+            "Initial-Access-ATLAS",
+            "AML.TA0004"
+          ],
+          "cwe": [
+            "CWE-74"
+          ],
+          "cvss_score": "6.4 (Medium, higher if injection enables data exfiltration or tool/function-calling abuse)",
+          "how": "If the organization exposes a public-facing chatbot or AI agent, test it for direct/indirect prompt-injection that bypasses system-prompt restrictions or triggers unintended tool/function calls. Manual, expert-driven testing - no mature CLI tooling exists for this yet (see gap analysis).",
+          "cases": [
+            "Attempt direct prompt injection to reveal system prompt or bypass stated restrictions",
+            "If the agent has tool-calling/function-calling capability, test whether injected instructions can trigger unintended external actions",
+            "Test indirect injection via content the agent is asked to summarize/process (e.g. a webpage or document containing hidden instructions)",
+            "Assess whether the agent can be coerced into leaking other users' conversation data or internal configuration"
+          ],
+          "expected": "System prompt and restrictions hold under adversarial input; tool-calling is strictly scoped and cannot be redirected by injected content.",
+          "recommendation": "Apply input/output filtering layers independent of the LLM itself, strictly scope what tools/functions an agent can invoke and require explicit confirmation for sensitive actions, never place long-term secrets directly in the system prompt.",
+          "tools": [
+            "Manual testing",
+            "garak (LLM vulnerability scanner)",
+            "PyRIT (Microsoft's red-teaming framework)"
+          ],
+          "command_template": "garak --model_type rest --model_name {{AI_ENDPOINT}} --probes promptinject,leakreplay",
+          "references": [
+            "https://atlas.mitre.org/"
+          ]
+        },
+        {
+          "id": "EXT-AI-04",
+          "name": "AI Model Supply Chain & Inference Infrastructure Exposure",
+          "sev": "medium",
+          "mitre_tactic": "Initial Access (ATLAS)",
+          "mitre_technique": [
+            "AML.T0010 - ML Supply Chain Compromise (ATLAS)"
+          ],
+          "mitre": [
+            "Initial-Access-ATLAS",
+            "AML.TA0004"
+          ],
+          "cwe": [
+            "CWE-829"
+          ],
+          "cvss_score": "6.5 (Medium)",
+          "how": "Identify whether the organization pulls models from unverified/public sources (HuggingFace, public model hubs) without integrity verification, and whether model-loading infrastructure is externally reachable.",
+          "cases": [
+            "Identify any public references (job postings, GitHub, docs) to which model hub/source is used for production inference",
+            "Check whether model-serving infra validates model checksums/signatures before loading (requires architecture-review input, not purely external testing)",
+            "Scan for exposed model-management dashboards (MLflow, Kubeflow) reachable externally"
+          ],
+          "expected": "Models are pulled from verified/internal registries with integrity checks; no model-management dashboard is externally reachable without auth.",
+          "recommendation": "Pin model versions by verified hash, mirror approved models into an internal registry rather than pulling directly from public hubs at runtime, authenticate all ML-ops tooling dashboards.",
+          "tools": [
+            "nuclei (exposed-panels/mlflow, kubeflow)",
+            "manual OSINT"
+          ],
+          "command_template": "nuclei -u {{HOST}} -t exposed-panels/mlflow/ -t exposed-panels/kubeflow/",
+          "references": [
+            "https://atlas.mitre.org/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-11",
+      "name": "Unauthenticated Web Application Testing",
+      "scope": "endpoint",
+      "items": [
+        {
+          "id": "EXT-WEB-01",
+          "name": "Unauthenticated OWASP Top 10 Sweep",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-89",
+            "CWE-79",
+            "CWE-918"
+          ],
+          "cvss_score": "9.8 (Critical) for confirmed SQLi/SSRF/RCE",
+          "how": "Run automated and manual testing for the OWASP Top 10 against every publicly reachable endpoint that does not require authentication (contact forms, search, public APIs, password-reset flows, etc.).",
+          "cases": [
+            "Test all input parameters for reflected/stored XSS",
+            "Test all query/body parameters for SQL injection (error-based, boolean, time-based, UNION)",
+            "Test any endpoint accepting URLs/file paths for SSRF (cloud metadata endpoint as canary: 169.254.169.254)",
+            "Test public password-reset/forgot-password flow for username enumeration and token predictability"
+          ],
+          "expected": "No critical/high OWASP Top 10 vulnerability is exploitable without authentication.",
+          "recommendation": "Use parameterized queries, context-aware output encoding, an allowlist-based SSRF guard on any server-side URL fetch, and generic (non-enumerable) responses on auth-adjacent flows.",
+          "tools": [
+            "sqlmap",
+            "dalfox (XSS)",
+            "ssrfmap",
+            "burpsuite"
+          ],
+          "command_template": "sqlmap -u \"{{URL}}\" --batch --level 3 --risk 2 --random-agent",
+          "references": [
+            "https://owasp.org/www-project-top-ten/"
+          ]
+        },
+        {
+          "id": "EXT-WEB-02",
+          "name": "Default Credential & Exposed Login Panel Discovery",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1078.001 - Valid Accounts: Default Accounts"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1078"
+          ],
+          "cwe": [
+            "CWE-521"
+          ],
+          "cvss_score": "9.8 (Critical) if default/weak creds succeed",
+          "how": "Discover all externally-reachable login panels (admin, CMS, device management) and test against known default credential lists with strict lockout-aware rate limiting.",
+          "cases": [
+            "Enumerate all discoverable login/admin panels across live hosts",
+            "Test a small, curated default-credential list per identified platform (never a full brute-force without written rate-limit authorization)",
+            "Check whether account lockout/rate-limiting is enforced after failed attempts"
+          ],
+          "expected": "No default/vendor credentials succeed; account lockout triggers after a small number of failed attempts.",
+          "recommendation": "Force credential change on first login for all admin/device accounts, enforce account lockout and progressive delay, monitor for credential-stuffing patterns.",
+          "tools": [
+            "nuclei (default-logins/)",
+            "hydra (rate-limited, authorized use only)"
+          ],
+          "command_template": "nuclei -u {{HOST}} -t default-logins/ -rate-limit 5",
+          "references": [
+            "https://attack.mitre.org/techniques/T1078/001/"
+          ]
+        },
+        {
+          "id": "EXT-WEB-03",
+          "name": "Public API Endpoint Discovery & Unauthenticated Access Testing",
+          "sev": "high",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-284",
+            "CWE-639"
+          ],
+          "cvss_score": "8.1 (High)",
+          "how": "Discover REST/GraphQL API endpoints behind the public web app and test whether any sensitive operation is reachable without authentication or via broken object-level authorization (BOLA/IDOR) at the unauthenticated layer.",
+          "cases": [
+            "Crawl JS bundles for API route definitions and Swagger/OpenAPI spec files",
+            "Fuzz discovered REST routes for endpoints missing auth middleware",
+            "Test GraphQL introspection exposure (should be disabled in production)",
+            "Test sequential/predictable ID parameters for IDOR even pre-authentication (e.g. public order-tracking, invoice-lookup pages)"
+          ],
+          "expected": "No sensitive API operation is reachable without authentication; GraphQL introspection disabled in production.",
+          "recommendation": "Enforce authentication/authorization middleware on every route by default (deny-by-default), disable GraphQL introspection in production, use non-sequential opaque identifiers for any public-facing lookup.",
+          "tools": [
+            "Arjun",
+            "kiterunner",
+            "graphql-cop",
+            "ffuf"
+          ],
+          "command_template": "kr scan https://{{HOST}} -w routes-large.kite -x 20",
+          "references": [
+            "https://attack.mitre.org/techniques/T1190/"
+          ]
+        },
+        {
+          "id": "EXT-WEB-04",
+          "name": "Unrestricted File Upload on Public-Facing Forms",
+          "sev": "critical",
+          "mitre_tactic": "Initial Access",
+          "mitre_technique": [
+            "T1190 - Exploit Public-Facing Application"
+          ],
+          "mitre": [
+            "Initial Access",
+            "T1190"
+          ],
+          "cwe": [
+            "CWE-434"
+          ],
+          "cvss_score": "9.8 (Critical) if executable upload leads to RCE",
+          "how": "Test any public-facing upload feature (CV/resume uploads, support-ticket attachments, image uploads) for insufficient file-type/content validation that could allow web-shell upload.",
+          "cases": [
+            "Attempt upload of disguised executable content (double extension, null-byte, content-type spoofing, polyglot files)",
+            "Verify uploaded files are stored outside the web-executable directory or served with safe Content-Disposition/Content-Type headers",
+            "Test whether uploaded file path is predictable/guessable for direct retrieval"
+          ],
+          "expected": "Upload functionality strictly validates file type/content (not just extension), stores files outside the executable webroot, and serves them with forced-download headers.",
+          "recommendation": "Validate file content via magic-byte/MIME inspection server-side, store uploads outside the webroot or in object storage with no execute permission, randomize stored filenames.",
+          "tools": [
+            "Burp Suite (Upload Scanner extension)",
+            "fuxploider"
+          ],
+          "command_template": "fuxploider --url https://{{HOST}}/upload --not-regex \"error|invalid\"",
+          "references": [
+            "https://attack.mitre.org/techniques/T1190/"
+          ]
+        },
+        {
+          "id": "EXT-WEB-05",
+          "name": "Business Logic Abuse on Public Forms (Account Enumeration / Rate-Limit Bypass)",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1589.001 - Gather Victim Identity Information: Credentials"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1589"
+          ],
+          "cwe": [
+            "CWE-307",
+            "CWE-203"
+          ],
+          "cvss_score": "5.9 (Medium)",
+          "how": "Test public login, registration, and password-reset forms for response-timing or messaging differences that allow attacker-side account/email enumeration, and test whether rate-limiting can be bypassed.",
+          "cases": [
+            "Compare response time/message for valid vs invalid usernames on login/reset forms",
+            "Test rate-limit bypass via header manipulation (X-Forwarded-For rotation) or IP rotation",
+            "Test CAPTCHA bypass feasibility (reuse of tokens, missing server-side validation)"
+          ],
+          "expected": "Identical response time/messaging regardless of account validity; rate-limiting cannot be trivially bypassed via header spoofing.",
+          "recommendation": "Return generic responses for valid/invalid identifiers, implement server-side rate-limiting keyed on multiple signals (not just client-supplied IP headers), validate CAPTCHA tokens server-side with single-use enforcement.",
+          "tools": [
+            "Burp Suite Intruder",
+            "ffuf (rate-limit testing)"
+          ],
+          "command_template": "ffuf -u https://{{HOST}}/login -X POST -d \"username=FUZZ&password=test\" -w usernames.txt -fr \"invalid\"",
+          "references": [
+            "https://attack.mitre.org/techniques/T1589/001/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-12",
+      "name": "WAF / CDN & Network Perimeter Assessment",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-PERIM-01",
+          "name": "IP Range / ASN Attack Surface Mapping",
+          "sev": "info",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.005 - Gather Victim Network Information: IP Addresses"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational)",
+          "how": "Map the organization's full owned ASN/IP-block footprint (not just the tested domain) to surface forgotten infrastructure sharing the same ownership.",
+          "cases": [
+            "Identify ASN(s) associated with the organization via BGP/WHOIS lookups",
+            "Enumerate all IP ranges announced under the identified ASN(s)",
+            "Cross-reference against the documented asset inventory to flag undocumented IP space"
+          ],
+          "expected": "All IP space under the organization's ASN is accounted for in the asset inventory with assigned ownership/purpose.",
+          "recommendation": "Maintain an ASN/IP-range inventory synced with the asset register, periodically re-run ASN-wide discovery to catch drift.",
+          "tools": [
+            "bgp.he.net lookups",
+            "asnmap",
+            "ipinfo-cli"
+          ],
+          "command_template": "asnmap -d {{DOMAIN}} -silent | nmap -sn -iL -",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/005/"
+          ]
+        },
+        {
+          "id": "EXT-PERIM-02",
+          "name": "Edge/CDN Origin IP Disclosure",
+          "sev": "high",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1590.005 - Gather Victim Network Information: IP Addresses"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1590"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "7.5 (High) - direct origin access bypasses all WAF/CDN protection",
+          "how": "Specifically hunt for the true origin IP behind CDN/WAF protection via historical DNS, mail server records, and misconfigured direct-access subdomains, then verify whether the origin accepts non-CDN traffic.",
+          "cases": [
+            "Check historical/passive DNS (SecurityTrails, ViewDNS) for pre-CDN-migration origin records",
+            "Check MX/mail-related subdomains, which are often not proxied through the web CDN and can leak the real hosting IP block",
+            "Attempt direct Host-header connection to any candidate origin IP to confirm it serves the same application"
+          ],
+          "expected": "Origin IP cannot be discovered via passive means, or if discovered, direct connection attempts are rejected by the origin firewall.",
+          "recommendation": "Restrict origin firewall to CDN provider IP ranges only, rotate origin IP after any suspected exposure, ensure mail and other non-web subdomains don't share the same IP as the protected web origin.",
+          "tools": [
+            "CloudFail",
+            "securitytrails-cli",
+            "censys-cli"
+          ],
+          "command_template": "python3 cloudfail.py -t {{DOMAIN}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1590/005/"
+          ]
+        },
+        {
+          "id": "EXT-PERIM-03",
+          "name": "Third-Party Dependency & Supply-Chain Mapping",
+          "sev": "medium",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1591.002 - Gather Victim Org Information: Business Relationships"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1591"
+          ],
+          "cwe": [],
+          "cvss_score": "N/A (Informational, feeds supply-chain risk rating)",
+          "how": "Catalog every third-party service the external-facing stack depends on (CDN, payment gateway, analytics, chat widgets, font/script CDNs) as each represents a supply-chain trust boundary.",
+          "cases": [
+            "Enumerate all third-party domains loaded by the public website (scripts, iframes, fonts, trackers)",
+            "Assess subresource-integrity (SRI) usage on third-party script tags",
+            "Flag any third-party script loaded without SRI that has write access to the page's DOM/cookies"
+          ],
+          "expected": "All third-party scripts critical to the page are loaded with Subresource Integrity hashes, or risk is formally accepted.",
+          "recommendation": "Add SRI attributes to third-party script tags, minimize the number of third-party origins with page-level trust, apply a strict Content-Security-Policy.",
+          "tools": [
+            "Blacklight (privacy/third-party scanner)",
+            "manual browser DevTools audit"
+          ],
+          "command_template": "curl -s https://{{HOST}} | grep -oP 'src=\"https://[^\"]+\"'",
+          "references": [
+            "https://attack.mitre.org/techniques/T1591/002/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EXT-PHASE-13",
+      "name": "Social Engineering Surface & Brand Exposure",
+      "scope": "project",
+      "items": [
+        {
+          "id": "EXT-SOCENG-01",
+          "name": "Typosquatting & Lookalike Domain Detection",
+          "sev": "high",
+          "mitre_tactic": "Resource Development",
+          "mitre_technique": [
+            "T1583.001 - Acquire Infrastructure: Domains"
+          ],
+          "mitre": [
+            "Resource Development",
+            "T1583"
+          ],
+          "cwe": [],
+          "cvss_score": "7.5 (High) if active phishing infra found on a lookalike",
+          "how": "Generate domain permutations (typosquats, homoglyphs, alternate TLDs) of the organization's domain and check which are registered and whether they host active phishing content.",
+          "cases": [
+            "Generate permutations (character swap, omission, homoglyph, TLD variation) of {{DOMAIN}}",
+            "Resolve each permutation and check for active hosting/MX records",
+            "For resolved domains, check for phishing-kit indicators (cloned login pages, brand logos)"
+          ],
+          "expected": "No actively-hosted lookalike domain is serving phishing content impersonating the organization.",
+          "recommendation": "Defensively register high-risk permutations, enable continuous typosquat monitoring, submit confirmed phishing domains for takedown.",
+          "tools": [
+            "dnstwist",
+            "urlcrazy"
+          ],
+          "command_template": "dnstwist --registered --format json {{DOMAIN}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1583/001/"
+          ]
+        },
+        {
+          "id": "EXT-SOCENG-02",
+          "name": "Active Phishing Campaign Detection Against the Brand",
+          "sev": "critical",
+          "mitre_tactic": "Resource Development",
+          "mitre_technique": [
+            "T1586.002 - Compromise Accounts: Email Accounts"
+          ],
+          "mitre": [
+            "Resource Development",
+            "T1586"
+          ],
+          "cwe": [],
+          "cvss_score": "9.0 (Critical) if an active campaign is impersonating the brand/customers in real time",
+          "how": "Check threat-intel phishing feeds and certificate-transparency logs for recently-issued certificates on domains impersonating the brand, which often precede or accompany active phishing campaigns.",
+          "cases": [
+            "Monitor CT logs for new certificates containing the brand name on non-owned domains",
+            "Query OpenPhish/PhishTank feeds for current listings referencing the organization",
+            "Document any active campaign for takedown/legal escalation outside pentest scope"
+          ],
+          "expected": "No active phishing campaign targeting customers/employees under the organization's brand is currently live.",
+          "recommendation": "Subscribe to a brand-protection/takedown service for continuous monitoring, pre-establish a takedown escalation path with registrars/hosting providers.",
+          "tools": [
+            "OpenPhish API",
+            "PhishTank API",
+            "crt.sh monitoring"
+          ],
+          "command_template": "curl -s \"https://openphish.com/feed.txt\" | grep -i {{BRAND_KEYWORD}}",
+          "references": [
+            "https://attack.mitre.org/techniques/T1586/002/"
+          ]
+        },
+        {
+          "id": "EXT-SOCENG-03",
+          "name": "Social Media & Public Post Attack-Surface Review",
+          "sev": "low",
+          "mitre_tactic": "Reconnaissance",
+          "mitre_technique": [
+            "T1593.001 - Search Open Websites/Domains: Social Media"
+          ],
+          "mitre": [
+            "Reconnaissance",
+            "T1593"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss_score": "N/A (Low)",
+          "how": "Review employee and corporate social media presence for internal information disclosure (badge photos, screen contents, org-chart details, internal tool names) usable for social engineering.",
+          "cases": [
+            "Search for employee posts showing internal tooling, badges, or office layout",
+            "Review corporate social accounts for accidental internal-detail disclosure in posted screenshots",
+            "Identify job postings disclosing specific internal tech stack/versions useful to an attacker"
+          ],
+          "expected": "No internal-detail disclosure sufficient to materially aid social engineering or technical targeting is found.",
+          "recommendation": "Include social-media OPSEC in security awareness training, review job postings for unnecessary internal technical detail before publishing.",
+          "tools": [
+            "Manual OSINT",
+            "Sherlock (username enumeration)"
+          ],
+          "command_template": "sherlock {{EMPLOYEE_HANDLE}} --print-found",
+          "references": [
+            "https://attack.mitre.org/techniques/T1593/001/"
+          ]
+        }
+      ]
+    }
+  ]
+}

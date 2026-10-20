@@ -18,12 +18,17 @@ Instead of maintaining flat spreadsheets or rigid checklists, Vectis structures 
 * **Custom Checklist Engine**:
   * Download official JSON checklist templates (`/checklists/template`).
   * Import custom methodologies with MITRE ATT&CK tactics, CWE mappings, CVSS scores, remediation advice, and parameterized command scripts.
-  * Export any checklist to JSON for versioning and team sharing.
   * Multi-framework engagement support: attach multiple checklists to a single project.
+  * **Dynamic Scope & Checklist Alteration (Safe Toggle)**: Check or uncheck assigned security frameworks at any time directly from the Dashboard or inside an active project. All recorded findings, tester notes, evidence, and CVSS scores are safely preserved in the database and automatically re-appear when a framework is re-enabled.
+  * **Engagement Metadata & Details Editing**: Edit project details (Name, Target, Environment, Lead Tester, Tech Stack, Scope Notes, and Rules of Engagement) at any point during the assessment without affecting existing test findings.
 
-### 2. 🗺️ Burp Suite Sitemap Coverage & Heuristic Engine
+### 2. 🗺️ Target Scoping, Domain Lists & Burp Suite Coverage
+* **Multi-Domain & Target Scope Import**:
+  * Include multiple target domains, subdomains, and hosts directly when creating an engagement or into an active project.
+  * Supports comma-separated domains (`app.domain.com, api.domain.com`), line-by-line inputs, and file uploads (`.txt`, `.csv`).
+  * Automatic protocol normalization (HTTPS/HTTP), port handling, and heuristic flag assignment (API, Auth, Admin).
 * **Burp XML Import**: Import live XML sitemap exports directly from Burp Suite (`Target → Site map → Save selected items`).
-* **Visual Sitemap Hierarchy**: Endpoints are parsed, grouped by host/path segments, and color-coded with live `tested / applicable` coverage badges.
+* **Visual Sitemap Hierarchy**: Endpoints and hosts are parsed, grouped by host/path segments, and color-coded with live `tested / applicable` coverage badges.
 * **Intelligent Heuristic Applicability Engine (`vuln_engine.py`)**:
   * Dynamically calculates which checks are relevant for each endpoint based on HTTP method, query/body parameters, headers, file uploads, authentication paths, IDOR indicators, and API routes.
   * SQLi / XSS checks appear on parameter-bearing endpoints; CSRF / State-change checks appear on state-changing endpoints; Auth checks appear on login/session endpoints; API Top 10 checks appear on `/api` routes; .NET checks appear on `.aspx/.ashx/.asmx`.

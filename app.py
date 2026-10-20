@@ -37,6 +37,11 @@ from models import (
     project_vuln_endpoints,
 )
 from burp_parser import parse_burp_xml
+from domain_parser import (
+    parse_domains_text,
+    add_endpoints_to_project,
+    parse_single_target,
+)
 from vuln_engine import applicable_checks_for_endpoint, phase_scope
 from scanners import applicable_scanners, run_all as run_all_scanners
 
@@ -313,6 +318,7 @@ def build_sitemap_tree(endpoints):
 def compute_endpoint_vuln_counts(project):
     """Calculates vulnerability counts by severity for every endpoint in the project."""
     endpoint_vulns = {}
+    active_type_ids = {ct.id for ct in project.checklist_types}
     for ep in project.endpoints:
         counts = {
             "critical": 0,
@@ -325,18 +331,20 @@ def compute_endpoint_vuln_counts(project):
         # Check ProjectVulnStatus affected endpoints
         for st in ep.affected_vuln_statuses:
             if st.project_id == project.id and st.status == "fail":
-                sev = (st.vuln.sev if st.vuln else "info").lower()
-                counts[sev] = counts.get(sev, 0) + 1
-                counts["total"] += 1
+                if not st.vuln or st.vuln.checklist_type_id in active_type_ids:
+                    sev = (st.vuln.sev if st.vuln else "info").lower()
+                    counts[sev] = counts.get(sev, 0) + 1
+                    counts["total"] += 1
 
         # Also support legacy EndpointVulnStatus findings if present
         for st in ep.statuses:
             if st.status == "fail":
-                sev = (st.vuln.sev if st.vuln else "info").lower()
-                # avoid double counting if also in ProjectVulnStatus
-                if not any(ps.vuln_id == st.vuln_id and ps.status == "fail" for ps in ep.affected_vuln_statuses):
-                    counts[sev] = counts.get(sev, 0) + 1
-                    counts["total"] += 1
+                if not st.vuln or st.vuln.checklist_type_id in active_type_ids:
+                    sev = (st.vuln.sev if st.vuln else "info").lower()
+                    # avoid double counting if also in ProjectVulnStatus
+                    if not any(ps.vuln_id == st.vuln_id and ps.status == "fail" for ps in ep.affected_vuln_statuses):
+                        counts[sev] = counts.get(sev, 0) + 1
+                        counts["total"] += 1
 
         endpoint_vulns[ep.id] = counts
     return endpoint_vulns
@@ -441,9 +449,50 @@ def register_routes(app):
         if not selected_checklist_ids:
             selected_checklist_ids = ["web-owasp-wstg"]
 
+        target_input = request.form.get("target", "").strip()
+        domain_list_text = request.form.get("domain_list", "").strip()
+        default_proto = request.form.get("default_proto", "https").strip().lower()
+
+        # Collect raw domain inputs
+        raw_domains = []
+        if domain_list_text:
+            raw_domains.append(domain_list_text)
+
+        domain_file = request.files.get("domain_file")
+        if domain_file and domain_file.filename:
+            try:
+                content = domain_file.read().decode("utf-8", errors="ignore")
+                if content.strip():
+                    raw_domains.append(content)
+            except Exception as e:
+                flash(f"Warning: Could not read uploaded domain file: {e}", "error")
+
+        # Check if target input contains multiple comma- or newline-separated domains
+        primary_target = target_input
+        if "," in target_input or "\n" in target_input or ";" in target_input:
+            raw_domains.append(target_input)
+            tokens = [t.strip() for t in re.split(r"[,;\n]", target_input) if t.strip()]
+            if tokens:
+                primary_target = tokens[0]
+
+        # Parse all domain inputs
+        parsed_eps = []
+        if raw_domains:
+            combined = "\n".join(raw_domains)
+            parsed_eps = parse_domains_text(combined, default_proto=default_proto)
+
+        # If primary target is provided and valid, ensure it is in parsed_eps
+        if primary_target:
+            target_ep = parse_single_target(primary_target, default_proto=default_proto)
+            if target_ep and not any(ep["url"] == target_ep["url"] or ep["host"] == target_ep["host"] for ep in parsed_eps):
+                parsed_eps.insert(0, target_ep)
+        elif parsed_eps:
+            # If no target was explicitly entered, default to first domain
+            primary_target = parsed_eps[0]["url"]
+
         p = Project(
             name=name,
-            target=request.form.get("target", "").strip(),
+            target=primary_target,
             tester=request.form.get("tester", "").strip(),
             env=request.form.get("env", "Staging").strip(),
             tech_stack=request.form.get("tech_stack", "").strip(),
@@ -457,8 +506,63 @@ def register_routes(app):
                 p.checklist_types.append(ct)
 
         db.session.commit()
-        flash(f"Project '{p.name}' created with {len(p.checklist_types)} checklist(s).", "success")
+
+        # Add domain endpoints to project
+        added_count, _ = add_endpoints_to_project(p, parsed_eps)
+
+        if added_count > 0:
+            flash(
+                f"Project '{p.name}' created with {len(p.checklist_types)} checklist(s) "
+                f"and {added_count} in-scope domain/endpoint(s).",
+                "success",
+            )
+        else:
+            flash(f"Project '{p.name}' created with {len(p.checklist_types)} checklist(s).", "success")
         return redirect(url_for("project_view", project_id=p.id))
+
+    @app.route("/project/<int:project_id>/domains", methods=["POST"])
+    @app.route("/projects/<int:project_id>/domains", methods=["POST"])
+    def add_project_domains(project_id):
+        project = Project.query.get_or_404(project_id)
+        domain_list_text = request.form.get("domain_list", "").strip()
+        default_proto = request.form.get("default_proto", "https").strip().lower()
+
+        raw_domains = []
+        if domain_list_text:
+            raw_domains.append(domain_list_text)
+
+        domain_file = request.files.get("domain_file")
+        if domain_file and domain_file.filename:
+            try:
+                content = domain_file.read().decode("utf-8", errors="ignore")
+                if content.strip():
+                    raw_domains.append(content)
+            except Exception as e:
+                flash(f"Error reading uploaded file: {e}", "error")
+
+        if not raw_domains:
+            flash("Please enter comma-separated domains or upload a domain list file.", "error")
+            return redirect(url_for("project_view", project_id=project.id))
+
+        combined = "\n".join(raw_domains)
+        parsed_eps = parse_domains_text(combined, default_proto=default_proto)
+        if not parsed_eps:
+            flash("No valid domains or target hosts could be extracted from input.", "error")
+            return redirect(url_for("project_view", project_id=project.id))
+
+        added, skipped = add_endpoints_to_project(project, parsed_eps)
+
+        # If project target was empty, set it to the first domain
+        if not project.target and parsed_eps:
+            project.target = parsed_eps[0]["url"]
+            db.session.commit()
+
+        msg = f"Scope updated: {added} new domain endpoint(s) added"
+        if skipped > 0:
+            msg += f", {skipped} duplicate(s) skipped"
+        msg += "."
+        flash(msg, "success" if added > 0 else "info")
+        return redirect(url_for("project_view", project_id=project.id))
 
     @app.route("/projects/<int:project_id>/delete", methods=["POST"])
     def delete_project(project_id):
@@ -468,6 +572,59 @@ def register_routes(app):
         db.session.commit()
         flash(f"Project '{p.name}' deleted.", "success")
         return redirect(url_for("dashboard"))
+
+    @app.route("/api/project/<int:project_id>", methods=["GET"])
+    def get_project_api(project_id):
+        p = Project.query.get_or_404(project_id)
+        return jsonify({
+            "id": p.id,
+            "name": p.name,
+            "target": p.target or "",
+            "tester": p.tester or "",
+            "env": p.env or "Staging",
+            "tech_stack": p.tech_stack or "",
+            "notes": p.notes or "",
+        })
+
+    @app.route("/project/<int:project_id>/edit", methods=["POST"])
+    @app.route("/projects/<int:project_id>/edit", methods=["POST"])
+    def edit_project(project_id):
+        project = Project.query.get_or_404(project_id)
+        name = request.form.get("name", "").strip()
+        if not name:
+            flash("Project name is required.", "error")
+            referer = request.referrer or ""
+            if "/project/" in referer:
+                return redirect(url_for("project_view", project_id=project.id))
+            return redirect(url_for("dashboard"))
+
+        new_target = request.form.get("target", "").strip()
+        project.name = name
+        project.target = new_target
+        project.tester = request.form.get("tester", "").strip()
+        project.env = request.form.get("env", "Staging").strip()
+        project.tech_stack = request.form.get("tech_stack", "").strip()
+        project.notes = request.form.get("notes", "").strip()
+
+        # If a valid new target was provided and not in endpoints, add as endpoint
+        if new_target:
+            target_ep = parse_single_target(new_target)
+            if target_ep:
+                existing_ep = Endpoint.query.filter_by(
+                    project_id=project.id,
+                    method=target_ep["method"],
+                    url=target_ep["url"],
+                ).first()
+                if not existing_ep:
+                    add_endpoints_to_project(project, [target_ep])
+
+        db.session.commit()
+        flash(f"Project '{project.name}' details updated successfully.", "success")
+
+        referer = request.referrer or ""
+        if "/project/" not in referer and "dashboard" in referer:
+            return redirect(url_for("dashboard"))
+        return redirect(url_for("project_view", project_id=project.id))
 
     # ------------------------------------------------ checklist management
     @app.route("/checklists/template", methods=["GET"])
@@ -580,6 +737,16 @@ def register_routes(app):
         selected_endpoint_id = request.args.get("filter_endpoint", type=int)
         selected_endpoint = db.session.get(Endpoint, selected_endpoint_id) if selected_endpoint_id else None
 
+        all_checklist_types = ChecklistType.query.order_by(
+            ChecklistType.is_builtin.desc(), ChecklistType.category, ChecklistType.name
+        ).all()
+
+        checklist_saved_counts = {}
+        for s in project.checklist_statuses:
+            if s.vuln and s.status != "untested":
+                ct_id = s.vuln.checklist_type_id
+                checklist_saved_counts[ct_id] = checklist_saved_counts.get(ct_id, 0) + 1
+
         return render_template(
             "project.html",
             project=project,
@@ -589,6 +756,8 @@ def register_routes(app):
             all_checks=all_checks,
             project_statuses=project_statuses,
             active_checklists=project.checklist_types,
+            all_checklist_types=all_checklist_types,
+            checklist_saved_counts=checklist_saved_counts,
             stats={
                 "endpoints": len(endpoints),
                 "total": total_checks,
@@ -602,6 +771,41 @@ def register_routes(app):
             },
             selected_endpoint=selected_endpoint,
         )
+
+    @app.route("/project/<int:project_id>/checklists", methods=["POST"])
+    @app.route("/projects/<int:project_id>/checklists", methods=["POST"])
+    def update_project_checklists(project_id):
+        project = Project.query.get_or_404(project_id)
+        selected_checklist_ids = request.form.getlist("checklist_types")
+        selected_checklist_ids = list(dict.fromkeys(selected_checklist_ids))
+
+        if not selected_checklist_ids:
+            flash("At least one assessment checklist must remain assigned to the project.", "error")
+            return redirect(url_for("project_view", project_id=project.id))
+
+        new_checklists = []
+        for c_id in selected_checklist_ids:
+            ct = db.session.get(ChecklistType, c_id)
+            if ct:
+                new_checklists.append(ct)
+
+        if not new_checklists:
+            flash("Invalid checklist selection.", "error")
+            return redirect(url_for("project_view", project_id=project.id))
+
+        # Safely update many-to-many relationship without deleting ProjectVulnStatus records
+        project.checklist_types = new_checklists
+        db.session.commit()
+
+        flash(
+            f"Assessment frameworks updated: {len(project.checklist_types)} checklist(s) active. "
+            "All findings, notes, and evidence remain safely preserved.",
+            "success",
+        )
+        referer = request.referrer or ""
+        if "/project/" not in referer and "dashboard" in referer:
+            return redirect(url_for("dashboard"))
+        return redirect(url_for("project_view", project_id=project.id))
 
     # -------------------------------------------------------- burp import
     @app.route("/project/<int:project_id>/import-burp", methods=["POST"])
