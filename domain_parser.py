@@ -103,11 +103,15 @@ def normalize_target_domain(raw_entry: str, default_proto: str = "https"):
     is_dotnet = bool(DOTNET_EXT.search(path))
     has_id = bool(NUMERIC_OR_UUID_SEGMENT.search(path))
 
+    port = host.split(":")[1] if ":" in host else ("80" if proto == "http" else "443")
+
     return {
         "method": "GET",
         "host": host,
         "path": path,
         "url": url,
+        "proto": proto,
+        "port": port,
         "query_params": [query] if query else [],
         "body_params": [],
         "content_type": "",
@@ -249,3 +253,65 @@ def parse_single_target(target_str: str, default_proto: str = "https"):
     if not target_str or not is_probable_target(target_str):
         return None
     return normalize_target_domain(target_str, default_proto=default_proto)
+
+
+def get_project_scope_targets(project):
+    """
+    Returns an ordered list of distinct scope targets (domains/hosts/URLs)
+    for a project.
+    Deduplicates by host/domain to provide a clean list of in-scope domains,
+    preserving default protocol and URL mapping.
+    """
+    targets = []
+    seen_hosts = set()
+
+    # 1. Project target(s)
+    if project.target:
+        raw_targets = [t.strip() for t in re.split(r"[,\s\n\r]+", project.target) if t.strip()]
+        for rt in raw_targets:
+            norm = normalize_target_domain(rt)
+            if norm:
+                host_key = norm["host"].lower()
+                if host_key not in seen_hosts:
+                    seen_hosts.add(host_key)
+                    targets.append({
+                        "id": f"target-{len(targets)+1}",
+                        "domain": norm["host"].split(":")[0],
+                        "host": norm["host"],
+                        "proto": norm["proto"],
+                        "port": str(norm["port"]),
+                        "path": norm["path"] or "/",
+                        "url": norm["url"],
+                        "label": norm["host"],
+                    })
+
+    # 2. Project endpoints
+    if hasattr(project, "endpoints"):
+        eps = project.endpoints.order_by(Endpoint.host, Endpoint.path).all()
+        for ep in eps:
+            if not ep.host:
+                continue
+            host = ep.host.strip()
+            host_key = host.lower()
+            proto = "https"
+            if ep.url and ep.url.startswith("http://"):
+                proto = "http"
+            port = host.split(":")[1] if ":" in host else ("80" if proto == "http" else "443")
+            domain = host.split(":")[0]
+            url = ep.url or f"{proto}://{host}{ep.path or '/'}"
+
+            if host_key not in seen_hosts:
+                seen_hosts.add(host_key)
+                targets.append({
+                    "id": ep.id,
+                    "domain": domain,
+                    "host": host,
+                    "proto": proto,
+                    "port": port,
+                    "path": ep.path or "/",
+                    "url": url,
+                    "label": host,
+                })
+
+    return targets
+

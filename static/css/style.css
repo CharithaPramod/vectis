@@ -184,6 +184,138 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .param-input{background:rgba(0,0,0,.6);border:1px solid var(--border);color:var(--green);font-family:var(--mono);font-size:10px;padding:3px 6px;min-width:110px}
 .param-input:focus{outline:none;border-color:var(--green3);background:rgba(0,0,0,.9)}
 
+/* Parameter Total Scope Selector */
+.param-item.scope-param-item{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:100%;
+  margin-top:2px;
+  margin-bottom:4px;
+}
+.scope-item-header{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:4px;
+}
+.param-scope-badge{
+  font-family:var(--mono);
+  font-size:9px;
+  background:rgba(0,255,204,.1);
+  border:1px solid rgba(0,255,204,.35);
+  color:var(--cyan);
+  padding:1px 6px;
+  border-radius:2px;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.scope-count-badge{
+  color:var(--white);
+  font-weight:bold;
+}
+.scope-toggle-btn{
+  background:rgba(0,0,0,.5);
+  border:1px solid var(--border2);
+  color:var(--dim);
+  font-family:var(--mono);
+  font-size:8.5px;
+  padding:2px 7px;
+  cursor:pointer;
+  border-radius:2px;
+  transition:all .12s;
+}
+.scope-toggle-btn:hover{
+  border-color:var(--cyan);
+  color:var(--cyan);
+}
+.param-scope-panel{
+  background:rgba(0,0,0,.6);
+  border:1px solid rgba(0,255,204,.2);
+  padding:6px 8px;
+  border-radius:2px;
+  margin-top:2px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.scope-panel-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding-bottom:4px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  font-size:8.5px;
+}
+.scope-panel-title{
+  color:var(--cyan);
+  font-weight:bold;
+  letter-spacing:.5px;
+}
+.scope-panel-actions{
+  display:flex;
+  gap:4px;
+}
+.scope-panel-actions .btn-micro{
+  background:rgba(0,0,0,.5);
+  border:1px solid var(--border2);
+  color:var(--dim);
+  font-family:var(--mono);
+  font-size:8px;
+  padding:1px 5px;
+  cursor:pointer;
+  border-radius:2px;
+}
+.scope-panel-actions .btn-micro:hover{
+  border-color:var(--cyan);
+  color:var(--white);
+}
+.scope-targets-list{
+  max-height:140px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  margin-top:2px;
+}
+.scope-target-row{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:3px 6px;
+  border-radius:2px;
+  background:rgba(255,255,255,.02);
+  cursor:pointer;
+  transition:background .1s;
+  user-select:none;
+}
+.scope-target-row:hover{
+  background:rgba(0,255,204,.08);
+}
+.scope-target-row input[type="checkbox"]{
+  accent-color:var(--cyan);
+  cursor:pointer;
+  margin:0;
+}
+.scope-target-name{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--white);
+  font-weight:bold;
+}
+.scope-target-url{
+  font-family:var(--mono);
+  font-size:8.5px;
+  color:var(--dim);
+  margin-left:auto;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  max-width:260px;
+}
+
 .cmd-rendered-wrap{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.6);border:1px solid var(--border2);padding:6px 10px;flex-wrap:wrap}
 .cmd-rendered-code{font-family:var(--mono);font-size:11px;color:var(--green);flex:1;overflow-x:auto;white-space:pre;min-width:200px}
 .cmd-btns-row{display:flex;gap:6px;align-items:center}
@@ -194,6 +326,18 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .btn-run-cmd{background:linear-gradient(135deg,rgba(0,255,65,.18),rgba(0,255,65,.04));border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:9px;font-weight:bold;padding:5px 11px;cursor:pointer;white-space:nowrap;letter-spacing:.5px;transition:all .15s}
 .btn-run-cmd:hover{background:var(--green);color:#000;box-shadow:0 0 10px rgba(0,255,65,.3)}
 .btn-run-cmd:active{transform:scale(0.97)}
+
+.btn-run-cmd.batch-mode{
+  background:linear-gradient(135deg,rgba(0,255,204,.2),rgba(0,255,204,.05));
+  border-color:var(--cyan);
+  color:var(--cyan);
+  box-shadow:0 0 8px rgba(0,255,204,.15);
+}
+.btn-run-cmd.batch-mode:hover{
+  background:var(--cyan);
+  color:#000;
+  box-shadow:0 0 14px rgba(0,255,204,.4);
+}
 
 .btn-preview-cmd{background:linear-gradient(135deg,rgba(0,255,204,.15),rgba(0,255,204,.03));border:1px solid var(--cyan);color:var(--cyan);font-family:var(--mono);font-size:9px;font-weight:bold;padding:5px 9px;cursor:pointer;white-space:nowrap;letter-spacing:.5px;transition:all .15s}
 .btn-preview-cmd:hover{background:var(--cyan);color:#000;box-shadow:0 0 10px rgba(0,255,204,.3)}
@@ -510,6 +654,86 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .term-section:last-child{
   border-bottom:none;
   margin-bottom:4px;
+}
+
+.cmd-run-badge{
+  font-family:var(--mono);
+  font-size:9.5px;
+  background:rgba(0,255,204,.12);
+  border:1px solid rgba(0,255,204,.35);
+  color:var(--cyan);
+  padding:1px 6px;
+  border-radius:2px;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.term-batch-banner{
+  background:rgba(0,255,204,.07);
+  border-left:3px solid var(--cyan);
+  padding:8px 12px;
+  margin:8px 0;
+  font-family:var(--mono);
+  font-size:10px;
+}
+.batch-header-title{
+  color:var(--cyan);
+  font-weight:bold;
+  font-size:11px;
+  letter-spacing:.5px;
+  margin-bottom:3px;
+}
+.batch-header-details{
+  color:var(--dim);
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  font-size:9.5px;
+}
+.batch-header-details b{color:var(--white)}
+.term-batch-summary{
+  background:rgba(0,255,65,.08);
+  border:1px solid rgba(0,255,65,.35);
+  padding:8px 12px;
+  margin:10px 0;
+  border-radius:2px;
+  font-family:var(--mono);
+}
+.term-batch-summary.cancelled{
+  background:rgba(255,170,0,.08);
+  border-color:rgba(255,170,0,.35);
+}
+.batch-summary-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.batch-summary-title{
+  color:var(--green);
+  font-weight:bold;
+  font-size:11px;
+}
+.term-batch-summary.cancelled .batch-summary-title{
+  color:#ffaa00;
+}
+.batch-summary-actions{
+  display:flex;
+  gap:6px;
+}
+.batch-summary-actions .btn-micro{
+  background:rgba(0,0,0,.6);
+  border:1px solid var(--border2);
+  color:var(--white);
+  padding:3px 8px;
+  font-size:9.5px;
+  cursor:pointer;
+  border-radius:2px;
+  transition:all .12s;
+}
+.batch-summary-actions .btn-micro:hover{
+  border-color:var(--green);
+  background:rgba(0,255,65,.15);
 }
 
 .term-cmd-banner{

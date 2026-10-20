@@ -539,6 +539,14 @@ function getDefaultParamValue(param, box) {
   return param.toLowerCase();
 }
 
+const TARGET_PARAM_VARS = ['DOMAIN', 'TARGET_DOMAIN', 'HOST', 'TARGET_HOST', 'URL', 'TARGET_URL', 'TARGET', 'IP'];
+
+function isTargetParamVar(param) {
+  if (!param) return false;
+  const p = param.toUpperCase();
+  return TARGET_PARAM_VARS.includes(p) || p.includes('DOMAIN') || p.includes('HOST');
+}
+
 function initCommandBoxes(root) {
   root = root || document;
   root.querySelectorAll('.tool-cmd-box').forEach(box => {
@@ -551,21 +559,197 @@ function initCommandBoxes(root) {
 
     if (paramRow.children.length === 0) {
       const params = extractParamsFromTemplate(tmpl);
+      const scopeTargets = window.PROJECT_SCOPE_TARGETS || [];
+      const hasScopeTargets = scopeTargets.length > 0;
+      let targetParamRendered = false;
+
       params.forEach(param => {
         const val = getDefaultParamValue(param, box);
-        const item = document.createElement('div');
-        item.className = 'param-item';
-        item.innerHTML = `
-          <label class="param-label">{{${param}}}</label>
-          <input type="text" class="param-input" data-var="${param}" value="${escapeHtml(val)}">
-        `;
-        item.querySelector('input').addEventListener('input', () => updateRenderedCommand(box));
-        paramRow.appendChild(item);
+        const isTargetParam = isTargetParamVar(param);
+
+        if (isTargetParam && hasScopeTargets && !targetParamRendered) {
+          targetParamRendered = true;
+          const item = document.createElement('div');
+          item.className = 'param-item scope-param-item';
+
+          let targetRowsHtml = '';
+          scopeTargets.forEach((t, idx) => {
+            const dispName = t.domain || t.host || `Target ${idx + 1}`;
+            const dispUrl = t.url || `${t.proto || 'https'}://${t.host || t.domain}/`;
+            targetRowsHtml += `
+              <label class="scope-target-row" title="${escapeHtml(dispUrl)}">
+                <input type="checkbox" class="scope-cb" checked
+                       data-id="${escapeHtml(String(t.id || ''))}"
+                       data-domain="${escapeHtml(t.domain || '')}"
+                       data-host="${escapeHtml(t.host || '')}"
+                       data-url="${escapeHtml(t.url || '')}"
+                       data-proto="${escapeHtml(t.proto || 'https')}"
+                       data-path="${escapeHtml(t.path || '/')}"
+                       data-port="${escapeHtml(t.port || '')}">
+                <span class="scope-target-name">${escapeHtml(dispName)}</span>
+                <span class="scope-target-url">${escapeHtml(dispUrl)}</span>
+              </label>
+            `;
+          });
+
+          item.innerHTML = `
+            <div class="scope-item-header">
+              <label class="param-label">{{${param}}}</label>
+              <div class="param-scope-badge">
+                <span>🌐 Total Scope:</span>
+                <span class="scope-count-badge">${scopeTargets.length}/${scopeTargets.length}</span>
+                <span>checked</span>
+              </div>
+              <button type="button" class="scope-toggle-btn" onclick="toggleScopePanel(this)" title="Collapse or expand scope target list">▾ Scope Targets</button>
+            </div>
+            <input type="text" class="param-input" data-var="${param}" value="${escapeHtml(val)}" style="display:none">
+            <div class="param-scope-panel">
+              <div class="scope-panel-header">
+                <span class="scope-panel-title">🎯 IN-SCOPE TARGETS (${scopeTargets.length})</span>
+                <div class="scope-panel-actions">
+                  <button type="button" class="btn-micro" onclick="selectAllScopeTargets(this, true)">✓ All</button>
+                  <button type="button" class="btn-micro" onclick="selectAllScopeTargets(this, false)">✕ None</button>
+                </div>
+              </div>
+              <div class="scope-targets-list">
+                ${targetRowsHtml}
+              </div>
+            </div>
+          `;
+
+          item.querySelectorAll('.scope-cb').forEach(cb => {
+            cb.addEventListener('change', () => updateScopeSelection(box));
+          });
+
+          paramRow.appendChild(item);
+        } else {
+          const item = document.createElement('div');
+          item.className = 'param-item';
+          item.innerHTML = `
+            <label class="param-label">{{${param}}}</label>
+            <input type="text" class="param-input" data-var="${param}" value="${escapeHtml(val)}">
+          `;
+          item.querySelector('input').addEventListener('input', () => updateRenderedCommand(box));
+          paramRow.appendChild(item);
+        }
       });
     }
 
+    updateScopeSelection(box);
     updateRenderedCommand(box);
   });
+}
+
+function updateScopeSelection(box) {
+  const allCbs = box.querySelectorAll('.scope-cb');
+  if (allCbs.length === 0) return;
+
+  const checkedCbs = box.querySelectorAll('.scope-cb:checked');
+  const countBadge = box.querySelector('.scope-count-badge');
+  if (countBadge) {
+    countBadge.textContent = `${checkedCbs.length}/${allCbs.length}`;
+  }
+
+  // Sync first checked target into the param-input value
+  const targetInput = box.querySelector('.scope-param-item .param-input');
+  if (targetInput && checkedCbs.length > 0) {
+    const firstCb = checkedCbs[0];
+    const varName = (targetInput.dataset.var || '').toUpperCase();
+    if (varName.includes('URL')) {
+      targetInput.value = firstCb.dataset.url || '';
+    } else if (varName.includes('HOST')) {
+      targetInput.value = firstCb.dataset.host || '';
+    } else {
+      targetInput.value = firstCb.dataset.domain || firstCb.dataset.host || '';
+    }
+  }
+
+  // Update Run button
+  const runBtn = box.querySelector('.btn-run-cmd');
+  if (runBtn) {
+    if (checkedCbs.length > 1) {
+      runBtn.textContent = `▶ RUN FOR SCOPE (${checkedCbs.length} TARGETS)`;
+      runBtn.classList.add('batch-mode');
+      runBtn.title = `Execute this command sequentially for all ${checkedCbs.length} selected targets`;
+    } else if (checkedCbs.length === 1) {
+      runBtn.textContent = '▶ RUN SCRIPT';
+      runBtn.classList.remove('batch-mode');
+      runBtn.title = 'Execute command for 1 target';
+    } else {
+      runBtn.textContent = '▶ RUN SCRIPT (0 TARGETS)';
+      runBtn.classList.remove('batch-mode');
+      runBtn.title = 'No targets selected in scope';
+    }
+  }
+
+  updateRenderedCommand(box);
+}
+
+function selectAllScopeTargets(btn, checkAll) {
+  const box = btn.closest('.tool-cmd-box');
+  if (!box) return;
+  box.querySelectorAll('.scope-cb').forEach(cb => {
+    cb.checked = !!checkAll;
+  });
+  updateScopeSelection(box);
+}
+
+function toggleScopePanel(btn) {
+  const item = btn.closest('.scope-param-item');
+  if (!item) return;
+  const panel = item.querySelector('.param-scope-panel');
+  if (!panel) return;
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'flex' : 'none';
+  btn.textContent = isHidden ? '▾ Scope Targets' : '▸ Scope Targets';
+}
+
+function renderCommandForTarget(box, target) {
+  let tmpl = box.dataset.template || '';
+  const inputs = box.querySelectorAll('.param-input');
+  const paramsMap = {};
+  inputs.forEach(inp => {
+    paramsMap[inp.dataset.var] = inp.value || '';
+  });
+
+  const domain = target.domain || target.host || '';
+  const host = target.host || target.domain || '';
+  const proto = target.proto || 'https';
+  const port = target.port || (proto === 'http' ? '80' : '443');
+  const path = target.path || '/';
+  const url = target.url || `${proto}://${host}${path}`;
+
+  const matches = tmpl.match(/\{\{([A-Za-z0-9_]+)\}\}/g) || [];
+  matches.forEach(m => {
+    const varName = m.replace(/[\{\}]/g, '');
+    const upper = varName.toUpperCase();
+    let repVal = paramsMap[varName];
+
+    if (upper === 'DOMAIN' || upper === 'TARGET_DOMAIN') {
+      repVal = domain;
+    } else if (upper === 'HOST' || upper === 'TARGET_HOST') {
+      repVal = host;
+    } else if (upper === 'URL' || upper === 'TARGET_URL') {
+      repVal = url;
+    } else if (upper === 'TARGET') {
+      repVal = domain || host || url;
+    } else if (upper === 'IP') {
+      repVal = domain;
+    } else if (upper === 'PATH') {
+      repVal = path;
+    } else if (upper === 'PORT') {
+      repVal = port;
+    } else if (upper === 'SCHEME' || upper === 'PROTO') {
+      repVal = proto;
+    }
+
+    if (repVal !== undefined) {
+      const reg = new RegExp(`\\{\\{${varName}\\}\\}`, 'g');
+      tmpl = tmpl.replace(reg, repVal);
+    }
+  });
+
+  return tmpl;
 }
 
 function updateRenderedCommand(box) {
@@ -577,8 +761,37 @@ function updateRenderedCommand(box) {
     const regex = new RegExp(`\\{\\{${v}\\}\\}`, 'g');
     tmpl = tmpl.replace(regex, val);
   });
+
+  const checkedCbs = box.querySelectorAll('.scope-cb:checked');
   const codeEl = box.querySelector('.cmd-rendered-code');
-  if (codeEl) codeEl.textContent = tmpl;
+  if (codeEl) {
+    if (checkedCbs.length > 1) {
+      const firstTarget = {
+        domain: checkedCbs[0].dataset.domain,
+        host: checkedCbs[0].dataset.host,
+        url: checkedCbs[0].dataset.url,
+        proto: checkedCbs[0].dataset.proto,
+        path: checkedCbs[0].dataset.path,
+        port: checkedCbs[0].dataset.port
+      };
+      const previewCmd = renderCommandForTarget(box, firstTarget);
+      codeEl.textContent = `# Total Scope: ${checkedCbs.length} targets selected (runs sequentially one by one)\n${previewCmd}`;
+    } else if (checkedCbs.length === 1) {
+      const target = {
+        domain: checkedCbs[0].dataset.domain,
+        host: checkedCbs[0].dataset.host,
+        url: checkedCbs[0].dataset.url,
+        proto: checkedCbs[0].dataset.proto,
+        path: checkedCbs[0].dataset.path,
+        port: checkedCbs[0].dataset.port
+      };
+      codeEl.textContent = renderCommandForTarget(box, target);
+    } else if (box.querySelectorAll('.scope-cb').length > 0 && checkedCbs.length === 0) {
+      codeEl.textContent = `# (No targets selected in scope checklist. Check domains above to execute.)`;
+    } else {
+      codeEl.textContent = tmpl;
+    }
+  }
 }
 
 function copyRenderedCommand(btn) {
@@ -778,11 +991,55 @@ function toggleAutoSaveNotes(checked) {
   localStorage.setItem('webpt_term_autosave', checked ? 'true' : 'false');
 }
 
-// ── Run Script from Card ──────────────────────────────────────────
+// ── Run Script from Card (Total Scope & Single Execution) ───────────
 function runScriptCommand(btn, projectId, vulnId) {
   const box = btn.closest('.tool-cmd-box');
   if (!box) return;
 
+  const checkedScope = Array.from(box.querySelectorAll('.scope-cb:checked'));
+  const hasScopeTargets = box.querySelectorAll('.scope-cb').length > 0;
+
+  if (hasScopeTargets && checkedScope.length === 0) {
+    alert('Please check at least one in-scope domain/target in the checklist to run the script.');
+    return;
+  }
+
+  const ci = btn.closest('.ci');
+  const checkName = ci ? (ci.querySelector('.cl-title')?.textContent || '').trim() : '';
+
+  // Multiple targets selected: Run sequential batch (one by one)!
+  if (checkedScope.length > 1) {
+    const targets = checkedScope.map(cb => ({
+      id: cb.dataset.id,
+      domain: cb.dataset.domain,
+      host: cb.dataset.host,
+      url: cb.dataset.url,
+      proto: cb.dataset.proto,
+      path: cb.dataset.path,
+      port: cb.dataset.port
+    }));
+    startBatchScopeExecution(projectId, vulnId, checkName, box, targets);
+    return;
+  }
+
+  // 1 target checked in scope: Run single command for that target
+  if (checkedScope.length === 1) {
+    const t = checkedScope[0];
+    const targetObj = {
+      domain: t.dataset.domain,
+      host: t.dataset.host,
+      url: t.dataset.url,
+      proto: t.dataset.proto,
+      path: t.dataset.path,
+      port: t.dataset.port
+    };
+    const cmd = renderCommandForTarget(box, targetObj);
+    const targetUrl = targetObj.url || targetObj.host || '';
+    startTerminalExecution(projectId, vulnId, checkName, targetUrl, cmd);
+    return;
+  }
+
+  // Fallback for commands without scope list
   updateRenderedCommand(box);
   const codeEl = box.querySelector('.cmd-rendered-code');
   let command = codeEl ? codeEl.textContent.trim() : '';
@@ -792,11 +1049,349 @@ function runScriptCommand(btn, projectId, vulnId) {
     return;
   }
 
-  const ci = btn.closest('.ci');
-  const checkName = ci ? (ci.querySelector('.cl-title')?.textContent || '').trim() : '';
   const targetUrl = box.dataset.url || box.dataset.target || '';
-
   startTerminalExecution(projectId, vulnId, checkName, targetUrl, command);
+}
+
+async function startBatchScopeExecution(projectId, vulnId, checkName, box, selectedTargets) {
+  currentTerminalContext.projectId = projectId;
+  currentTerminalContext.vulnId = vulnId;
+  currentTerminalContext.checkName = checkName;
+  currentTerminalContext.batchCancelled = false;
+  currentTerminalContext.isBatchRunning = true;
+  currentTerminalContext.lastBatchResults = [];
+
+  openTerminalDrawer();
+  updateTerminalTargetInfo();
+
+  const outputEl = document.getElementById('terminalOutput');
+  const stopBtn = document.getElementById('btnStopProcess');
+  if (stopBtn) stopBtn.style.display = 'inline-block';
+
+  // Render Master Batch Header
+  const batchHeaderEl = document.createElement('div');
+  batchHeaderEl.className = 'term-batch-banner';
+  batchHeaderEl.innerHTML = `
+    <div class="batch-header-title">⚡ TOTAL SCOPE BATCH EXECUTION // ${escapeHtml(checkName || vulnId || 'Check')}</div>
+    <div class="batch-header-details">
+      <span>Scope Targets: <b>${selectedTargets.length} selected</b></span>
+      <span>Mode: <b>Sequential (1 by 1)</b></span>
+      <span id="batchProgressCounter">Status: <b>Initializing sequence...</b></span>
+    </div>
+  `;
+  outputEl.appendChild(batchHeaderEl);
+  outputEl.scrollTop = outputEl.scrollHeight;
+
+  const batchResults = [];
+  let completedCount = 0;
+
+  for (let i = 0; i < selectedTargets.length; i++) {
+    if (currentTerminalContext.batchCancelled) {
+      break;
+    }
+
+    const target = selectedTargets[i];
+    const cmd = renderCommandForTarget(box, target);
+
+    setTerminalStatus(`BATCH [${i + 1}/${selectedTargets.length}]: ${target.domain || target.host}`, 'running');
+    
+    const progressEl = document.getElementById('batchProgressCounter');
+    if (progressEl) {
+      progressEl.innerHTML = `Running [${i + 1}/${selectedTargets.length}]: <b>${escapeHtml(target.domain || target.host)}</b>`;
+    }
+
+    // Execute single command in sequence and await completion
+    const result = await executeSingleCommandInSequence(cmd, projectId, vulnId, target, i + 1, selectedTargets.length);
+    batchResults.push(result);
+    completedCount++;
+
+    // Brief pause between targets
+    if (i < selectedTargets.length - 1 && !currentTerminalContext.batchCancelled) {
+      await new Promise(r => setTimeout(r, 350));
+    }
+  }
+
+  currentTerminalContext.isBatchRunning = false;
+  currentTerminalContext.isRunning = false;
+  if (stopBtn) stopBtn.style.display = 'none';
+
+  const isCancelled = currentTerminalContext.batchCancelled;
+  const summaryEl = document.createElement('div');
+  summaryEl.className = `term-batch-summary ${isCancelled ? 'cancelled' : 'complete'}`;
+  
+  const statusText = isCancelled 
+    ? `⏹ BATCH EXECUTION STOPPED BY USER (${completedCount} of ${selectedTargets.length} targets ran)`
+    : `✓ BATCH EXECUTION COMPLETE (${completedCount} of ${selectedTargets.length} targets executed successfully)`;
+
+  setTerminalStatus(isCancelled ? 'BATCH STOPPED' : 'BATCH COMPLETE', isCancelled ? 'idle' : 'pass');
+
+  summaryEl.innerHTML = `
+    <div class="batch-summary-header">
+      <span class="batch-summary-title">${statusText}</span>
+      <div class="batch-summary-actions">
+        <button type="button" class="btn-micro" onclick="saveAllBatchOutputsToNotes(this)" title="Save full aggregated batch output to check notes">📝 Save All Responses to Notes</button>
+        <button type="button" class="btn-micro" onclick="copyAllBatchOutput(this)" title="Copy all responses">📋 Copy All</button>
+      </div>
+    </div>
+  `;
+  outputEl.appendChild(summaryEl);
+  outputEl.scrollTop = outputEl.scrollHeight;
+
+  currentTerminalContext.lastBatchResults = batchResults;
+
+  // Auto-save if enabled
+  if (currentTerminalContext.autoSave && vulnId && projectId && batchResults.length > 0) {
+    autoSaveBatchResultsToNotes(projectId, vulnId, checkName, batchResults);
+  }
+}
+
+function executeSingleCommandInSequence(command, projectId, vulnId, target, targetIndex, totalTargets) {
+  return new Promise(async (resolve) => {
+    const outputEl = document.getElementById('terminalOutput');
+    const inputEl = document.getElementById('termInteractiveInput');
+    if (inputEl) inputEl.value = command;
+
+    currentTerminalContext.command = command;
+    currentTerminalContext.currentSectionCommand = command;
+    currentTerminalContext.currentSectionVulnId = vulnId;
+    currentTerminalContext.currentSectionProjectId = projectId;
+    currentTerminalContext.currentSectionOutput = '';
+    currentTerminalContext.isRunning = true;
+    currentTerminalContext.startTime = Date.now();
+
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'term-section';
+    sectionEl.dataset.cmd = command;
+    sectionEl.dataset.vulnId = vulnId;
+    sectionEl.dataset.projectId = String(projectId);
+    sectionEl.dataset.targetDomain = target.domain || target.host || '';
+
+    const cmdHeader = document.createElement('div');
+    cmdHeader.className = 'term-cmd-banner';
+    cmdHeader.innerHTML = `
+      <div class="cmd-run-info">
+        <span class="cmd-run-badge">[${targetIndex}/${totalTargets}] 🌐 ${escapeHtml(target.domain || target.host)}</span>
+        <span class="cmd-run-text">$ ${escapeHtml(command)}</span>
+        <span class="cmd-run-time">${new Date().toLocaleTimeString()}</span>
+      </div>
+      <div class="cmd-run-actions">
+        <button type="button" class="btn-micro" onclick="saveSpecificSectionToNotes(this)" title="Save only this target output to check notes">📝 Save Target</button>
+        <button type="button" class="btn-micro" onclick="copySpecificSectionOutput(this)" title="Copy this target output">📋 Copy</button>
+      </div>
+    `;
+    sectionEl.appendChild(cmdHeader);
+
+    const sectionContent = document.createElement('div');
+    sectionContent.className = 'term-section-output';
+    sectionEl.appendChild(sectionContent);
+
+    outputEl.appendChild(sectionEl);
+    outputEl.scrollTop = outputEl.scrollHeight;
+
+    currentTerminalContext.currentSectionEl = sectionEl;
+    currentTerminalContext.currentSectionContentEl = sectionContent;
+
+    const vault = getApiVault();
+    let exitCode = null;
+    let targetOutput = '';
+
+    try {
+      const response = await fetch('/api/tools/run-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: command,
+          project_id: projectId,
+          api_keys: vault
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        if (currentTerminalContext.batchCancelled) {
+          try { reader.cancel(); } catch (e) {}
+          break;
+        }
+
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.replace('data: ', '').trim();
+          if (!jsonStr) continue;
+
+          try {
+            const evt = JSON.parse(jsonStr);
+            if (evt.type === 'start') {
+              currentTerminalContext.processId = evt.process_id;
+            } else if (evt.type === 'stdout' || evt.type === 'stderr') {
+              const raw = evt.text || '';
+              targetOutput += raw;
+              currentTerminalContext.currentSectionOutput += raw;
+              currentTerminalContext.rawOutput += raw;
+
+              const lineEl = document.createElement('div');
+              lineEl.className = 'term-line';
+              lineEl.innerHTML = ansiToHtml(raw);
+              sectionContent.appendChild(lineEl);
+              outputEl.scrollTop = outputEl.scrollHeight;
+            } else if (evt.type === 'exit') {
+              exitCode = evt.code;
+              const duration = evt.duration;
+              const isSuccess = exitCode === 0;
+
+              const exitEl = document.createElement('div');
+              exitEl.className = `term-exit-banner ${isSuccess ? 'success' : 'failed'}`;
+              exitEl.innerHTML = `
+                <span>● Finished for <b>${escapeHtml(target.domain || target.host)}</b> (exit code <b>${exitCode}</b>)</span>
+                <span>⏱ <b>${duration}s</b></span>
+              `;
+              sectionEl.appendChild(exitEl);
+              outputEl.scrollTop = outputEl.scrollHeight;
+            } else if (evt.type === 'error') {
+              const lineEl = document.createElement('div');
+              lineEl.className = 'term-line term-error';
+              lineEl.textContent = `[System Error]: ${evt.text}`;
+              sectionContent.appendChild(lineEl);
+              outputEl.scrollTop = outputEl.scrollHeight;
+            }
+          } catch (e) {
+            console.error('Error parsing SSE event:', e);
+          }
+        }
+      }
+    } catch (err) {
+      const errLine = document.createElement('div');
+      errLine.className = 'term-line term-error';
+      errLine.textContent = `[Execution Error for ${target.domain || target.host}]: ${err.message}`;
+      sectionContent.appendChild(errLine);
+    } finally {
+      resolve({
+        target,
+        command,
+        output: targetOutput,
+        exitCode: exitCode !== null ? exitCode : (currentTerminalContext.batchCancelled ? -1 : 0)
+      });
+    }
+  });
+}
+
+function formatBatchResultsForNotes(batchResults, checkName) {
+  let note = `[Total Scope Batch Execution Evidence]\n`;
+  note += `Check: ${checkName || 'Vulnerability Check'}\n`;
+  note += `Executed: ${new Date().toLocaleString()}\n`;
+  note += `Total Scope Targets Tested: ${batchResults.length}\n\n`;
+
+  batchResults.forEach((res, idx) => {
+    const targetLabel = res.target.domain || res.target.host || `Target ${idx + 1}`;
+    const cleanOutput = stripAnsi(res.output || '').trim();
+    note += `==========================================================\n`;
+    note += `🌐 TARGET [${idx + 1}/${batchResults.length}]: ${targetLabel}\n`;
+    note += `Command: ${res.command}\n`;
+    note += `Exit Code: ${res.exitCode !== null ? res.exitCode : 'N/A'}\n`;
+    note += `----------------------------------------------------------\n`;
+    note += cleanOutput ? cleanOutput : '(No output returned)';
+    note += `\n\n`;
+  });
+
+  return note;
+}
+
+function autoSaveBatchResultsToNotes(projectId, vulnId, checkName, batchResults) {
+  const noteContent = formatBatchResultsForNotes(batchResults, checkName);
+  fetch(`/api/project/${projectId}/checklist/${vulnId}/append-notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes: noteContent })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const textarea = document.querySelector(`.ci[data-check-id="${vulnId}"] .notes-area`) ||
+                     document.querySelector(`textarea[onblur*="${vulnId}"]`);
+    if (textarea) {
+      textarea.value = data.notes;
+      autoResizeTextarea(textarea);
+      flashSaved(textarea);
+    }
+  })
+  .catch(err => console.error('Error auto-saving batch notes:', err));
+}
+
+function saveAllBatchOutputsToNotes(btn) {
+  const results = currentTerminalContext.lastBatchResults;
+  const pid = currentTerminalContext.projectId;
+  const vid = currentTerminalContext.vulnId;
+  const checkName = currentTerminalContext.checkName;
+
+  if (!results || results.length === 0) {
+    alert('No batch execution results available to save.');
+    return;
+  }
+
+  if (!vid || !pid) {
+    alert('Please select a checklist item first before saving batch results.');
+    return;
+  }
+
+  const noteContent = formatBatchResultsForNotes(results, checkName);
+  const origText = btn.textContent;
+  btn.textContent = 'Saving all...';
+
+  fetch(`/api/project/${pid}/checklist/${vid}/append-notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes: noteContent })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const textarea = document.querySelector(`.ci[data-check-id="${vid}"] .notes-area`) ||
+                     document.querySelector(`textarea[onblur*="${vid}"]`);
+    if (textarea) {
+      textarea.value = data.notes;
+      autoResizeTextarea(textarea);
+      flashSaved(textarea);
+    }
+
+    btn.textContent = '✓ ALL SAVED!';
+    btn.classList.add('saved');
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.classList.remove('saved');
+    }, 2000);
+  })
+  .catch(err => {
+    btn.textContent = origText;
+    alert('Failed to save batch outputs: ' + err);
+  });
+}
+
+function copyAllBatchOutput(btn) {
+  const results = currentTerminalContext.lastBatchResults;
+  if (!results || results.length === 0) {
+    alert('No batch output to copy.');
+    return;
+  }
+
+  const noteContent = formatBatchResultsForNotes(results, currentTerminalContext.checkName);
+  navigator.clipboard.writeText(noteContent).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIED ALL!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(err => {
+    alert('Could not copy to clipboard: ' + err);
+  });
 }
 
 function closeKeyPromptModal() {
@@ -1378,6 +1973,10 @@ function quickSendStoredKey() {
 }
 
 function stopCurrentProcess() {
+  currentTerminalContext.batchCancelled = true;
+  currentTerminalContext.isRunning = false;
+  currentTerminalContext.isBatchRunning = false;
+
   if (!currentTerminalContext.processId) return;
 
   fetch('/api/tools/stop-command', {

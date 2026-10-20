@@ -36,6 +36,14 @@ Instead of maintaining flat spreadsheets or rigid checklists, Vectis structures 
 
 ### 3. 💻 Integrated Web Terminal & Command Runner
 * **Browser-Based Tool Execution**: Run tools like `nmap`, `ffuf`, `gobuster`, `nikto`, `sqlmap`, `curl`, and custom scripts directly from the workspace.
+* **🌐 Total Scope Sequential Execution**:
+  * For command templates using domain or target variables (`{{DOMAIN}}`, `{{HOST}}`, `{{URL}}`, `{{TARGET}}`), the tool runner automatically exposes the **Total In-Scope Checklist**.
+  * **Default Selected**: All project scope domains and endpoints are checked by default (`[x]`).
+  * **Selective Scanning**: Easily uncheck any domain or host to exclude it from the scan, or use `✓ All` / `✕ None` quick toggles.
+  * **Sequential Runner (`▶ RUN FOR SCOPE (N TARGETS)`)**: Executes commands sequentially (**one by one**) across all checked domains, preserving template parameters (e.g., `{{PORTS}}`, `{{WORDLIST}}`).
+  * **Accurate Output Capture**: Each domain receives its own labeled section banner in the terminal drawer with real-time SSE streaming.
+  * **Batch Evidence Archiving**: Automatically appends or lets you manually save all multi-target scan responses formatted cleanly under checklist item notes (`[Total Scope Batch Execution Evidence]`).
+  * **Interactive Process Control**: Stop running executions at any time; halts active commands and cancels queued targets cleanly.
 * **Live SSE Output Streaming**: Real-time server-sent events provide instant stdout/stderr terminal output with ANSI color support.
 * **Smart Parameter Interpolation**: Command templates automatically interpolate endpoint context:
   * `{url}`, `{host}`, `{ip}`, `{path}`, `{method}`, `{port}`, `{assessment_dir}`, `{token}`

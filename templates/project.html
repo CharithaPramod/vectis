@@ -33,6 +33,9 @@
 {% endmacro %}
 
 {% block body %}
+<script>
+  window.PROJECT_SCOPE_TARGETS = {{ (project_scope_targets or [])|tojson }};
+</script>
 <div id="app">
   <!-- SIDEBAR: SITEMAP & ENDPOINTS -->
   <div id="sidebar">

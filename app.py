@@ -41,6 +41,7 @@ from domain_parser import (
     parse_domains_text,
     add_endpoints_to_project,
     parse_single_target,
+    get_project_scope_targets,
 )
 from vuln_engine import applicable_checks_for_endpoint, phase_scope
 from scanners import applicable_scanners, run_all as run_all_scanners
@@ -747,6 +748,8 @@ def register_routes(app):
                 ct_id = s.vuln.checklist_type_id
                 checklist_saved_counts[ct_id] = checklist_saved_counts.get(ct_id, 0) + 1
 
+        project_scope_targets = get_project_scope_targets(project)
+
         return render_template(
             "project.html",
             project=project,
@@ -758,6 +761,7 @@ def register_routes(app):
             active_checklists=project.checklist_types,
             all_checklist_types=all_checklist_types,
             checklist_saved_counts=checklist_saved_counts,
+            project_scope_targets=project_scope_targets,
             stats={
                 "endpoints": len(endpoints),
                 "total": total_checks,
