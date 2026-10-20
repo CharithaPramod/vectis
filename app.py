@@ -880,6 +880,25 @@ def register_routes(app):
     RUNNING_PROCESSES = {}
     PROCESS_LOCK = threading.Lock()
 
+    def ensure_assessment_wordlists(assessment_dir):
+        """Populates common starter wordlists in the assessment directory if they don't exist."""
+        default_files = {
+            "usernames.txt": "admin\nadministrator\nroot\nuser\ntest\nguest\napi\nsupport\nservice\ndemo\ndev\ninfo\ncontact\nstaff\nmanager\noperator\nwebmaster\nsecurity\naudit\nbackup\n",
+            "passwords.txt": "password\n123456\nadmin\nadmin123\nroot\ntoor\nPass1234\npassword123\nqwerty\nletmein\nwelcome\nchangeme\n",
+            "emails.txt": "admin@example.com\ntest@example.com\nuser@example.com\nsupport@example.com\ninfo@example.com\n",
+            "extensions.txt": "php\naspx\nasp\njsp\njspx\nhtml\njs\njson\nxml\ntxt\nbak\nold\nzip\ntar.gz\nsql\nenv\nyml\nyaml\nconf\nini\n",
+            "subs.txt": "www\nmail\napi\ndev\ntest\nstage\nstaging\nadmin\nportal\napp\nvpn\nremote\nsecure\nauth\ninternal\n",
+            "wordlist.txt": "admin\napi\napp\nbackup\nbin\nconfig\ncss\ndashboard\ndata\ndb\ndebug\ndev\ndoc\ndocs\ndownload\nfiles\nimages\nimg\ninclude\nincludes\njs\nlib\nlogin\nlogout\nmedia\npanel\nportal\npublic\nrobots.txt\nsitemap.xml\nsrc\nstatic\ntemp\ntest\ntmp\nupload\nuploads\nuser\nusers\nv1\nv2\nwp-admin\nwp-content\nwp-includes\n",
+        }
+        for fname, content in default_files.items():
+            fpath = os.path.join(assessment_dir, fname)
+            if not os.path.exists(fpath):
+                try:
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write(content)
+                except Exception:
+                    pass
+
     @app.route("/api/tools/run-command", methods=["POST"])
     def run_tool_command():
         data = request.get_json(force=True) or {}
@@ -899,6 +918,7 @@ def register_routes(app):
             assessment_name = "General"
 
         os.makedirs(assessment_dir, exist_ok=True)
+        ensure_assessment_wordlists(assessment_dir)
         process_id = str(uuid.uuid4())
 
         def stream_output():
@@ -1261,6 +1281,6 @@ def register_routes(app):
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    app.run(debug=True, host="127.0.0.1", port=5001)
 
 

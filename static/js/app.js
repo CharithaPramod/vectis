@@ -778,7 +778,7 @@ function toggleAutoSaveNotes(checked) {
   localStorage.setItem('webpt_term_autosave', checked ? 'true' : 'false');
 }
 
-// ── Run Script from Card & Pre-Execution Key Verification ─────────
+// ── Run Script from Card ──────────────────────────────────────────
 function runScriptCommand(btn, projectId, vulnId) {
   const box = btn.closest('.tool-cmd-box');
   if (!box) return;
@@ -796,87 +796,13 @@ function runScriptCommand(btn, projectId, vulnId) {
   const checkName = ci ? (ci.querySelector('.cl-title')?.textContent || '').trim() : '';
   const targetUrl = box.dataset.url || box.dataset.target || '';
 
-  // Check for missing API keys or default placeholder values
-  const missingKeys = [];
-  const inputs = box.querySelectorAll('.param-input');
-  inputs.forEach(inp => {
-    const v = inp.dataset.var;
-    const val = (inp.value || '').trim();
-    const isKeyParam = /^(API_KEY|TOKEN|BEARER|SHODAN|HUNTER|SECURITYTRAILS|VIRUSTOTAL|GITHUB|AWS_SECRET|AWS_KEY|PASSWORD|SECRET|ACCESS_KEY)/i.test(v);
-    const isPlaceholder = !val || val === 'eyJhbGciOi...' || val === 'shodan_key' || val === 'hunter_key' || val === 'vt_key' || val === 'your-api-key' || val === 'secret_key';
-
-    if (isKeyParam && isPlaceholder) {
-      missingKeys.push({ varName: v, currentVal: val });
-    }
-  });
-
-  if (missingKeys.length > 0) {
-    pendingExecution = {
-      box: box,
-      projectId: projectId,
-      vulnId: vulnId,
-      checkName: checkName,
-      targetUrl: targetUrl,
-      missingKeys: missingKeys
-    };
-    openKeyPromptModal(missingKeys);
-    return;
-  }
-
   startTerminalExecution(projectId, vulnId, checkName, targetUrl, command);
-}
-
-function openKeyPromptModal(missingKeys) {
-  const modal = document.getElementById('keyPromptModal');
-  const list = document.getElementById('keyPromptFieldsList');
-  if (!modal || !list) return;
-
-  list.innerHTML = '';
-  missingKeys.forEach(item => {
-    const stored = getApiKeyForParam(item.varName);
-    const row = document.createElement('div');
-    row.className = 'field';
-    row.innerHTML = `
-      <label style="color:var(--cyan);font-weight:bold">${escapeHtml(item.varName)} (API Key / Token):</label>
-      <input type="text" class="key-prompt-input" data-var="${escapeHtml(item.varName)}" value="${escapeHtml(stored || '')}" placeholder="Enter ${escapeHtml(item.varName)} for execution...">
-    `;
-    list.appendChild(row);
-  });
-
-  modal.style.display = 'flex';
 }
 
 function closeKeyPromptModal() {
   const modal = document.getElementById('keyPromptModal');
   if (modal) modal.style.display = 'none';
   pendingExecution = null;
-}
-
-function confirmKeyPromptAndRun() {
-  if (!pendingExecution) return;
-  const modal = document.getElementById('keyPromptModal');
-  const inputs = modal.querySelectorAll('.key-prompt-input');
-  const saveToVault = document.getElementById('chkSaveKeyToVault')?.checked;
-  const vault = getApiVault();
-
-  inputs.forEach(inp => {
-    const v = inp.dataset.var;
-    const val = inp.value.trim();
-    if (val) {
-      if (saveToVault) vault[v] = val;
-      const cardInput = pendingExecution.box.querySelector(`.param-input[data-var="${v}"]`);
-      if (cardInput) cardInput.value = val;
-    }
-  });
-
-  if (saveToVault) saveApiVault(vault);
-  updateRenderedCommand(pendingExecution.box);
-  const codeEl = pendingExecution.box.querySelector('.cmd-rendered-code');
-  const command = codeEl ? codeEl.textContent.trim() : '';
-
-  const { projectId, vulnId, checkName, targetUrl } = pendingExecution;
-  closeKeyPromptModal();
-  startTerminalExecution(projectId, vulnId, checkName, targetUrl, command);
 }
 
 function startTerminalExecution(projectId, vulnId, checkName, targetUrl, command) {
@@ -1103,86 +1029,26 @@ function detectScriptFailureReason(rawOutput, code, command) {
   const text = (rawOutput || '').toLowerCase();
   const cmd = (command || '').toLowerCase();
 
-  // 1. Specific Recon / Threat Intel API Providers
-  if (text.includes('shodan') || cmd.includes('shodan') || /shodan.*(key|unauthorized|invalid|401|403|require)/i.test(text)) {
+  // 1. Missing Wordlist / File Error (check before API providers to avoid tool banner false positives)
+  if (/(stat\s+.*no such file or directory|no such file or directory|cannot open|wordlist.*not found|file not found|failed to open|unable to read)/i.test(text) && !/(command not found|executable file not found)/i.test(text)) {
+    const fileMatch = text.match(/(?:stat|open|file)\s+([^\s:]+\.(txt|json|req|list|kite|csv|xml|lst|dict|yaml|yml|bak))/i) ||
+                      text.match(/stat\s+([^:\n]+)/i);
+    const fileName = fileMatch ? fileMatch[1].split('/').pop() : 'wordlist / input file';
     return {
-      type: 'shodan_key',
-      title: 'Shodan API Key / Authentication Error',
-      description: 'Shodan reported an authentication or authorization failure. A valid SHODAN_API_KEY is required to query Shodan search & host endpoints.',
-      keyVar: 'SHODAN_API_KEY'
+      type: 'missing_file',
+      title: `File or Wordlist Not Found (${fileName})`,
+      description: `The command failed because '${fileName}' does not exist in the assessment directory. You can edit the command to specify a system wordlist path (e.g., /usr/share/wordlists/dirb/common.txt) or upload files to this assessment directory.`,
+      keyVar: null
     };
   }
 
-  if (text.includes('hunter') || cmd.includes('hunter') || /hunter.*(key|unauthorized|invalid|401|403)/i.test(text)) {
+  // 2. Missing Tool / Binary error
+  if (/(command not found|executable file not found|not recognized as an internal or external command|no such command)/i.test(text)) {
     return {
-      type: 'hunter_key',
-      title: 'Hunter.io API Key / Auth Error',
-      description: 'Hunter.io email enumeration failed due to missing or invalid credentials. A valid HUNTER_API_KEY is required.',
-      keyVar: 'HUNTER_API_KEY'
-    };
-  }
-
-  if (text.includes('securitytrails') || cmd.includes('securitytrails') || /securitytrails.*(key|unauthorized|invalid|401|403)/i.test(text)) {
-    return {
-      type: 'sectrails_key',
-      title: 'SecurityTrails API Key Error',
-      description: 'SecurityTrails reconnaissance failed. A valid SECURITYTRAILS_API_KEY is required.',
-      keyVar: 'SECURITYTRAILS_API_KEY'
-    };
-  }
-
-  if (text.includes('virustotal') || cmd.includes('virustotal') || /virustotal.*(key|unauthorized|invalid|401|403)/i.test(text)) {
-    return {
-      type: 'vt_key',
-      title: 'VirusTotal API Key Error',
-      description: 'VirusTotal threat intelligence query failed. A valid VIRUSTOTAL_API_KEY is required.',
-      keyVar: 'VIRUSTOTAL_API_KEY'
-    };
-  }
-
-  if (text.includes('censys') || cmd.includes('censys') || /censys.*(key|secret|id|unauthorized|401|403)/i.test(text)) {
-    return {
-      type: 'censys_key',
-      title: 'Censys Credentials Error',
-      description: 'Censys host query failed. A valid CENSYS_API_ID and CENSYS_API_SECRET are required.',
-      keyVar: 'CENSYS_API_SECRET'
-    };
-  }
-
-  if (text.includes('github') || cmd.includes('github') || /github.*(token|bad credentials|rate limit|401|403)/i.test(text)) {
-    return {
-      type: 'github_token',
-      title: 'GitHub API Token Error',
-      description: 'GitHub API request failed or was rate limited. A valid GITHUB_TOKEN is required.',
-      keyVar: 'GITHUB_TOKEN'
-    };
-  }
-
-  if (text.includes('aws') || cmd.includes('aws') || /(accessdenied|signaturedoesnotmatch|security token|credential|403)/i.test(text)) {
-    return {
-      type: 'aws_key',
-      title: 'AWS Credentials / Permission Error',
-      description: 'AWS CLI reported an authentication or permission error. Verify AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY.',
-      keyVar: 'AWS_ACCESS_KEY_ID'
-    };
-  }
-
-  if (text.includes('openai') || text.includes('anthropic') || /(sk-proj-|sk-ant-|openai_api_key|anthropic_api_key)/i.test(text)) {
-    return {
-      type: 'ai_key',
-      title: 'AI / LLM API Key Error',
-      description: 'AI model invocation failed due to invalid or missing credentials. Check OPENAI_API_KEY or ANTHROPIC_API_KEY.',
-      keyVar: 'OPENAI_API_KEY'
-    };
-  }
-
-  // 2. Generic HTTP 401/403 or Token/Key rejection
-  if (/(401 unauthorized|403 forbidden|invalid token|token expired|bearer token required|missing authorization header|authentication failed|access denied|invalid api key|api key required|unauthorized)/i.test(text)) {
-    return {
-      type: 'auth_token',
-      title: 'Authentication / Token Rejection (401/403)',
-      description: 'The target server or API rejected the request due to missing, invalid, or expired authentication token / credentials.',
-      keyVar: 'TOKEN'
+      type: 'tool_missing',
+      title: 'Command / Tool Not Installed',
+      description: 'The executable specified in the command is not installed or not present on the system PATH.',
+      keyVar: null
     };
   }
 
@@ -1196,21 +1062,94 @@ function detectScriptFailureReason(rawOutput, code, command) {
     };
   }
 
-  // 4. Missing tool / Binary error
-  if (/(command not found|no such file or directory|executable file not found)/i.test(text)) {
+  // 4. Specific Recon / Threat Intel API Providers (accurate auth error matching only)
+  if (/shodan.*(invalid api key|api key required|invalid key|401 unauthorized|403 forbidden|unauthorized)|api\.shodan\.io.*(401|403)/i.test(text)) {
     return {
-      type: 'tool_missing',
-      title: 'Command / Tool Not Found',
-      description: 'The executable specified in the command is not installed or not present on the system PATH.',
-      keyVar: null
+      type: 'shodan_key',
+      title: 'Shodan API Key / Authentication Error',
+      description: 'Shodan reported an authentication or authorization failure. A valid SHODAN_API_KEY is required to query Shodan search & host endpoints.',
+      keyVar: 'SHODAN_API_KEY'
     };
   }
 
-  // 5. Generic Non-Zero Exit Failure
+  if (/hunter.*(invalid api key|api key required|invalid key|401 unauthorized|403 forbidden|unauthorized)|api\.hunter\.io.*(401|403)/i.test(text)) {
+    return {
+      type: 'hunter_key',
+      title: 'Hunter.io API Key / Auth Error',
+      description: 'Hunter.io email enumeration failed due to missing or invalid credentials. A valid HUNTER_API_KEY is required.',
+      keyVar: 'HUNTER_API_KEY'
+    };
+  }
+
+  if (/securitytrails.*(invalid api key|api key required|invalid key|401 unauthorized|403 forbidden|unauthorized)|api\.securitytrails\.com.*(401|403)/i.test(text)) {
+    return {
+      type: 'sectrails_key',
+      title: 'SecurityTrails API Key Error',
+      description: 'SecurityTrails reconnaissance failed. A valid SECURITYTRAILS_API_KEY is required.',
+      keyVar: 'SECURITYTRAILS_API_KEY'
+    };
+  }
+
+  if (/virustotal.*(invalid api key|api key required|invalid key|401 unauthorized|403 forbidden|unauthorized)|virustotal\.com\/api.*(401|403)/i.test(text)) {
+    return {
+      type: 'vt_key',
+      title: 'VirusTotal API Key Error',
+      description: 'VirusTotal threat intelligence query failed. A valid VIRUSTOTAL_API_KEY is required.',
+      keyVar: 'VIRUSTOTAL_API_KEY'
+    };
+  }
+
+  if (/censys.*(invalid credentials|api key required|secret required|401 unauthorized|403 forbidden|unauthorized)/i.test(text)) {
+    return {
+      type: 'censys_key',
+      title: 'Censys Credentials Error',
+      description: 'Censys host query failed. A valid CENSYS_API_ID and CENSYS_API_SECRET are required.',
+      keyVar: 'CENSYS_API_SECRET'
+    };
+  }
+
+  if (/(api\.github\.com.*(401|403|bad credentials|rate limit|requires authentication)|github token (invalid|required|expired)|gh_token.*invalid)/i.test(text)) {
+    return {
+      type: 'github_token',
+      title: 'GitHub API Token Error',
+      description: 'GitHub API request failed or was rate limited. A valid GITHUB_TOKEN is required.',
+      keyVar: 'GITHUB_TOKEN'
+    };
+  }
+
+  if (/(aws.*(accessdenied|signaturedoesnotmatch|security token|invalid client token id|expired token)|the security token included in the request is invalid)/i.test(text)) {
+    return {
+      type: 'aws_key',
+      title: 'AWS Credentials / Permission Error',
+      description: 'AWS CLI reported an authentication or permission error. Verify AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY.',
+      keyVar: 'AWS_ACCESS_KEY_ID'
+    };
+  }
+
+  if (/(openai.*(invalid api key|incorrect api key|401|403)|anthropic.*(invalid x-api-key|401|403)|sk-proj-.*invalid|sk-ant-.*invalid)/i.test(text)) {
+    return {
+      type: 'ai_key',
+      title: 'AI / LLM API Key Error',
+      description: 'AI model invocation failed due to invalid or missing credentials. Check OPENAI_API_KEY or ANTHROPIC_API_KEY.',
+      keyVar: 'OPENAI_API_KEY'
+    };
+  }
+
+  // 5. Generic HTTP 401/403 or Target Token Rejection
+  if (/(401 unauthorized|403 forbidden|invalid token|token expired|bearer token required|missing authorization header|authentication failed|access denied)/i.test(text)) {
+    return {
+      type: 'auth_token',
+      title: 'Authentication / Token Rejection (401/403)',
+      description: 'The target server or API rejected the request due to missing, invalid, or expired authentication token / credentials.',
+      keyVar: 'TOKEN'
+    };
+  }
+
+  // 6. Generic Non-Zero Exit Failure
   return {
     type: 'generic_failure',
     title: `Script Execution Failed (Exit Code ${code})`,
-    description: `The command encountered an error during execution. You can adjust API keys, reconfigure parameters, or edit the command below.`,
+    description: `The command encountered an error during execution. You can adjust parameters, inspect output, or edit the command below.`,
     keyVar: (cmd.includes('bearer') || cmd.includes('token') || cmd.includes('auth') || cmd.includes('-h "authorization')) ? 'TOKEN' : null
   };
 }
